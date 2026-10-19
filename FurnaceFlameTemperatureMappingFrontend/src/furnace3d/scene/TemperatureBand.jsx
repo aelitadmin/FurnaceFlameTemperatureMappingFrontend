@@ -182,8 +182,8 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
     const top = layers[layers.length - 1].z;
     // Extend the temperature gradient to the full furnace height
     const extendedTop = model.dimensions.height;
-    // Extend to just above the hopper (cone) - hopper starts at height * 0.16
-    const extendedBottom = model.dimensions.height * 0.16;
+    // Start from the lowest elevation layer instead of extending to hopper
+    const extendedBottom = bottom;
     const height = extendedTop - extendedBottom;
     if (height <= 0) return null;
 
@@ -276,7 +276,8 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
     // Match the existing upper gradient surface's actual span at the join.
     const xInner = width * 0.45;
     const xOuter = width * 0.951;
-    const centerY = (height * 0.16 + height) / 2;
+    const lowestElevation = layers[0].z;
+    const centerY = (lowestElevation + height) / 2;
     // Slightly overlap the shell outline to prevent a dark antialiasing seam;
     // the outline itself renders over this fill.
     const z = depth * 0.501;
