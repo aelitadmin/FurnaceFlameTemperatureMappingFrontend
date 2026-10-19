@@ -195,43 +195,45 @@ function FurnaceFrame({ width, height, depth, explosionOffset, lowestElevation }
     const tubeRadius = 0.16;
     const numTubesPerSide = 4;
 
-    const addTube = (top, bottom) => {
-      const topPoint = new THREE.Vector3(...top);
-      const bottomPoint = new THREE.Vector3(...bottom);
-      const direction = topPoint.clone().sub(bottomPoint).normalize();
-      const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
-      const rotation = new THREE.Euler().setFromQuaternion(quaternion);
-      const center = topPoint.add(bottomPoint).multiplyScalar(0.5);
-      tubes.push({
-        position: center.toArray(),
-        rotation: [rotation.x, rotation.y, rotation.z],
-        height: new THREE.Vector3(...top).distanceTo(new THREE.Vector3(...bottom)),
-        radius: tubeRadius,
-      });
-    };
-
     const tubeTopY = Math.max(hopperY, Math.min(height, lowestElevation ?? hopperY));
     const wallTubeHeight = tubeTopY - hopperY;
+    const faces = [[], [], [], []];
+    const makeRun = (topWall, wallBase, outlet) => [
+      new THREE.Vector3(...topWall),
+      new THREE.Vector3(...wallBase),
+      new THREE.Vector3(...outlet),
+    ];
     for (let i = 0; i < numTubesPerSide; i++) {
       const progress = (i + 0.5) / numTubesPerSide;
       const x = -width / 2 + width * progress;
       const z = -depth / 2 + depth * progress;
-      if (wallTubeHeight > 0) {
-        addTube([x, tubeTopY, depth / 2], [x, hopperY, depth / 2]);
-        addTube([x, tubeTopY, -depth / 2], [x, hopperY, -depth / 2]);
-        addTube([-width / 2, tubeTopY, z], [-width / 2, hopperY, z]);
-        addTube([width / 2, tubeTopY, z], [width / 2, hopperY, z]);
-      }
-
       const bottomX = -outletX + outletX * 2 * progress;
       const bottomZ = -outletZ + outletZ * 2 * progress;
-      // Each hopper run contracts in both horizontal axes, matching the 3D
-      // corner-to-outlet slope instead of tapering in only one plane.
-      addTube([-width / 2 + width * progress, hopperY, depth / 2], [bottomX, outletY, outletZ]);
-      addTube([-width / 2 + width * progress, hopperY, -depth / 2], [bottomX, outletY, -outletZ]);
-      addTube([-width / 2, hopperY, -depth / 2 + depth * progress], [-outletX, outletY, bottomZ]);
-      addTube([width / 2, hopperY, -depth / 2 + depth * progress], [outletX, outletY, bottomZ]);
+      if (wallTubeHeight <= 0) continue;
+      faces[0].push(makeRun([x, tubeTopY, depth / 2], [x, hopperY, depth / 2], [bottomX, outletY, outletZ]));
+      faces[1].push(makeRun([x, tubeTopY, -depth / 2], [x, hopperY, -depth / 2], [bottomX, outletY, -outletZ]));
+      faces[2].push(makeRun([-width / 2, tubeTopY, z], [-width / 2, hopperY, z], [-outletX, outletY, bottomZ]));
+      faces[3].push(makeRun([width / 2, tubeTopY, z], [width / 2, hopperY, z], [outletX, outletY, bottomZ]));
     }
+
+    // A continuous path snakes down each face and turns back between runs.
+    faces.forEach((runs) => {
+      if (runs.length < 2) return;
+      const points = [];
+      runs.forEach((run, index) => {
+        const orderedRun = index % 2 === 0 ? run : [...run].reverse();
+        if (index === 0) points.push(...orderedRun);
+        else {
+          const previousEnd = points[points.length - 1];
+          const nextStart = orderedRun[0];
+          const bend = previousEnd.clone().add(nextStart).multiplyScalar(0.5);
+          bend.y += previousEnd.y <= hopperY ? -0.26 : 0.26;
+          points.push(bend, nextStart, ...orderedRun.slice(1));
+        }
+      });
+      const path = new THREE.CatmullRomCurve3(points, false, "centripetal", 0.25);
+      tubes.push({ radius: tubeRadius, geometry: new THREE.TubeGeometry(path, 360, tubeRadius, 10, false) });
+    });
 
     return tubes;
   }, [width, height, depth, hopperY, outletY, outletX, outletZ, lowestElevation]);
@@ -245,19 +247,18 @@ function FurnaceFrame({ width, height, depth, explosionOffset, lowestElevation }
         <torusGeometry args={[width * 1.08, 0.58, 8, 72]} />
         <meshBasicMaterial color="#34372f" />
       </mesh>
-      {/* Water-cooled tubes */}
+      {/* Water-cooled tubes use continuous serpentine paths like the coil banks. */}
       {hopperTubes.map((tube, index) => (
-        <mesh
-          key={`hopper-tube-${index}`}
-          position={tube.position}
-          rotation={tube.rotation}
-          castShadow
-          receiveShadow
-          renderOrder={20}
-        >
-          <cylinderGeometry args={[tube.radius, tube.radius, tube.height, 24]} />
-          <meshBasicMaterial color="#35cfff" toneMapped={false} />
-        </mesh>
+        <group key={`hopper-tube-${index}`} renderOrder={520}>
+          <mesh castShadow receiveShadow renderOrder={520}>
+            <tubeGeometry args={[tube.geometry.parameters.path, 240, tube.radius * 1.65, 10, false]} />
+            <meshBasicMaterial color="#40131b" depthTest={false} toneMapped={false} />
+          </mesh>
+          <mesh castShadow receiveShadow renderOrder={521}>
+            <primitive object={tube.geometry} attach="geometry" />
+            <meshStandardMaterial color="#40131b" emissive="#40131b" emissiveIntensity={0.3} metalness={0.38} roughness={0.32} depthTest={false} toneMapped={false} />
+          </mesh>
+        </group>
       ))}
     </group>
   );
@@ -694,24 +695,16 @@ function WaterCooledTubes({ width, height, depth, lowestElevation, explosionOffs
   return (
     <group>
       {tubes.map((tube, index) => (
-        <mesh
-          key={`water-tube-${index}`}
-          position={tube.position}
-          rotation={tube.rotation}
-          castShadow
-          receiveShadow
-          renderOrder={1000}
-        >
-          <cylinderGeometry args={[tubeRadius, tubeRadius, tube.height, 32]} />
-          <meshStandardMaterial
-            color="#ff6b00"
-            metalness={0.8}
-            roughness={0.2}
-            emissive="#ff4500"
-            emissiveIntensity={1.0}
-            envMapIntensity={3.0}
-          />
-        </mesh>
+        <group key={`water-tube-${index}`} position={tube.position} rotation={tube.rotation} renderOrder={520}>
+          <mesh castShadow receiveShadow renderOrder={520}>
+            <cylinderGeometry args={[tubeRadius * 1.65, tubeRadius * 1.65, tube.height, 32]} />
+            <meshBasicMaterial color="#40131b" depthTest={false} toneMapped={false} />
+          </mesh>
+          <mesh castShadow receiveShadow renderOrder={521}>
+            <cylinderGeometry args={[tubeRadius, tubeRadius, tube.height, 32]} />
+            <meshStandardMaterial color="#40131b" emissive="#40131b" emissiveIntensity={0.3} metalness={0.38} roughness={0.32} depthTest={false} toneMapped={false} />
+          </mesh>
+        </group>
       ))}
     </group>
   );
