@@ -1,0 +1,1 @@
+var e=`/v2/assets/abhitech-logo-DiuMQ1w6.png`;export{e as t};

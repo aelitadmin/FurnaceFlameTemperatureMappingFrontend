@@ -187,7 +187,7 @@ const LoadingFallback = () => {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
+      <BrowserRouter basename="/v2/">
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<LoginPage />} />
