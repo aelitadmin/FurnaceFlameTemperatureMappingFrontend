@@ -92,7 +92,10 @@ const createInitialState = () => ({
   
   // CT Scan Mode (slice only, hide everything else) - DISABLED temporarily to debug shader issues
   ctScanMode: false,
-  
+
+  // Temperature focus mode for sectional views
+  temperatureFocusMode: false,
+
   // Plant-specific configuration
   plantId: "default",
 });
@@ -173,7 +176,10 @@ const ACTION_TYPES = {
   
   // CT Scan Mode
   SET_CT_SCAN_MODE: 'SET_CT_SCAN_MODE',
-  
+
+  // Temperature focus mode
+  SET_TEMPERATURE_FOCUS_MODE: 'SET_TEMPERATURE_FOCUS_MODE',
+
   // Plant configuration
   SET_PLANT_ID: 'SET_PLANT_ID',
 };
@@ -464,8 +470,8 @@ function reducer(state, action) {
       };
       
     case ACTION_TYPES.SET_CT_SCAN_MODE:
-      return { 
-        ...state, 
+      return {
+        ...state,
         ctScanMode: action.enabled,
         multiClipEnabled: action.enabled,
         sectionalView: action.enabled ? "section" : "full",
@@ -473,7 +479,13 @@ function reducer(state, action) {
         isFocusedView: false,
         focusTarget: null
       };
-      
+
+    case ACTION_TYPES.SET_TEMPERATURE_FOCUS_MODE:
+      return {
+        ...state,
+        temperatureFocusMode: action.enabled,
+      };
+
     case ACTION_TYPES.SET_PLANT_ID:
       return { ...state, plantId: action.plantId };
       
@@ -567,7 +579,10 @@ export function FurnaceStoreProvider({ children }) {
     
     // CT Scan Mode
     setCTScanMode: (enabled) => dispatch(createAction(ACTION_TYPES.SET_CT_SCAN_MODE, { enabled })),
-    
+
+    // Temperature focus mode
+    setTemperatureFocusMode: (enabled) => dispatch(createAction(ACTION_TYPES.SET_TEMPERATURE_FOCUS_MODE, { enabled })),
+
     // Plant configuration
     setPlantId: (plantId) => dispatch(createAction(ACTION_TYPES.SET_PLANT_ID, { plantId })),
   }), []);

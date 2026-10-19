@@ -39,6 +39,7 @@ import { exportSimulationCSV, exportFurnaceJSON, exportScenarioJSON, exportTempe
 import { exportSimplified3D, exportLayoutCAD } from "./utils/export3D";
 import { playAlertSound } from "./utils/soundAlerts";
 import { useCameraSync } from "./CameraSync";
+import { setTemperatureScaleRange } from "./utils/temperatureScale";
 
 
 // ============================================================================
@@ -370,7 +371,7 @@ const EnhancedLoadingState = () => (
 // MAIN COMPONENT
 // ============================================================================
 
-function Furnace3DViewInner({ embedded = false, runId: requestedRunId = null, enableCameraSync = true }) {
+function Furnace3DViewInner({ embedded = false, runId: requestedRunId = null, enableCameraSync = true, temperatureFocusMode = false, furnaceOffsets = [[0, 0], [0, 0]] }) {
   const navigate = useNavigate();
   const cameraSync = useCameraSync();
   useEffect(() => {
@@ -385,6 +386,7 @@ function Furnace3DViewInner({ embedded = false, runId: requestedRunId = null, en
     setSuggestion,
     setLightingPreset,
     clearFocusedLayer,
+    setTemperatureFocusMode,
   } = useFurnaceStore();
   
   const [model, setModel] = useState(null);
@@ -496,6 +498,35 @@ function Furnace3DViewInner({ embedded = false, runId: requestedRunId = null, en
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [state.isFocusedView, clearFocusedLayer]);
+
+  // Sync temperature focus mode prop with store state
+  useEffect(() => {
+    setTemperatureFocusMode(temperatureFocusMode);
+  }, [temperatureFocusMode, setTemperatureFocusMode]);
+
+  // Filter temperature scale to focused layer when temperature focus mode is enabled
+  useEffect(() => {
+    if (!model || !state.temperatureFocusMode || !state.focusedLayerId) return;
+
+    const focusedLayer = model.layers.find(l => l.id === state.focusedLayerId);
+    if (!focusedLayer) return;
+
+    // Get temperatures from the focused layer's corners (c1, c2, c3, c4)
+    const layerTemps = [
+      focusedLayer.temperature.c1,
+      focusedLayer.temperature.c2,
+      focusedLayer.temperature.c3,
+      focusedLayer.temperature.c4,
+    ].filter(t => t != null && Number.isFinite(t));
+
+    if (layerTemps.length === 0) return;
+
+    const min = Math.round(Math.min(...layerTemps));
+    const max = Math.round(Math.max(...layerTemps));
+    if (max <= min) return;
+
+    setTemperatureScaleRange(min, max, requestedRunId || 'default');
+  }, [state.temperatureFocusMode, state.focusedLayerId, model, requestedRunId]);
 
   // Auto-switch to scene tab when focused view is activated (mobile)
   useEffect(() => {
@@ -792,10 +823,10 @@ function Furnace3DViewInner({ embedded = false, runId: requestedRunId = null, en
   );
 }
 
-export default function Furnace3DView({ embedded = false, runId = null, enableCameraSync = true }) {
+export default function Furnace3DView({ embedded = false, runId = null, enableCameraSync = true, temperatureFocusMode = false, furnaceOffsets = [[0, 0], [0, 0]] }) {
   return (
     <FurnaceStoreProvider>
-      <Furnace3DViewInner embedded={embedded} runId={runId} enableCameraSync={enableCameraSync} />
+      <Furnace3DViewInner embedded={embedded} runId={runId} enableCameraSync={enableCameraSync} temperatureFocusMode={temperatureFocusMode} furnaceOffsets={furnaceOffsets} />
     </FurnaceStoreProvider>
   );
 }

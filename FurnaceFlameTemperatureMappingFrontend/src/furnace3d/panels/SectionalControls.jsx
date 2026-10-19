@@ -275,9 +275,9 @@ export default function SectionalControls({ model }) {
 }
 
 function SectionalControlsContent({ model }) {
-  const { state, setMultiClipEnabled, setClipPlane, toggleExplodedView, setExplosionFactor, clearFocusedLayer, setCTScanMode } = useFurnaceStore();
+  const { state, setMultiClipEnabled, setClipPlane, toggleExplodedView, setExplosionFactor, clearFocusedLayer, setCTScanMode, setTemperatureFocusMode } = useFurnaceStore();
 
-  const { multiClipEnabled, explodedView, clipPlanes, explosionFactor, isFocusedView, focusedLayerId, ctScanMode } = state;
+  const { multiClipEnabled, explodedView, clipPlanes, explosionFactor, isFocusedView, focusedLayerId, ctScanMode, temperatureFocusMode } = state;
 
   // Inject global CSS for custom range sliders
   useEffect(() => {
@@ -377,6 +377,15 @@ function SectionalControlsContent({ model }) {
           label="CT SCAN"
           activeColor="#06b6d4"
         />
+        {isFocusedView && (
+          <PillToggle
+            active={temperatureFocusMode}
+            onClick={() => setTemperatureFocusMode(!temperatureFocusMode)}
+            icon={<IconCrosshair />}
+            label="TEMP FOCUS"
+            activeColor="#f59e0b"
+          />
+        )}
         <PillToggle
           active={multiClipEnabled}
           onClick={() => setMultiClipEnabled(!multiClipEnabled)}

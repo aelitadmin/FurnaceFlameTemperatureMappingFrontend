@@ -1384,6 +1384,29 @@ export default function App() {
     setTemperatureScaleRange(min, max, runId);
     setTemperatureScaleVersion((version) => version + 1);
   };
+
+  const filterFocusedElevationTemperatureScale = (runId) => {
+    const dataset = datasets[runId];
+    if (!dataset) return;
+
+    // Get the temperature scale range for the entire dataset
+    const allTemperatures = Object.keys(dataset)
+      .filter((key) => /^c\d+$/.test(key))
+      .flatMap((key) => dataset[key] || [])
+      .map((value) => (value == null || String(value).trim() === "" ? NaN : Number(value)))
+      .filter((value) => Number.isFinite(value) && value > 0);
+
+    if (!allTemperatures.length) return;
+
+    let min = Math.round(Math.min(...allTemperatures));
+    let max = Math.round(Math.max(...allTemperatures));
+    if (max <= min) max = min + 1;
+
+    setTemperatureScaleRange(min, max, runId);
+    setTemperatureScaleVersion((version) => version + 1);
+  };
+
+
   const [activeTab, setActiveTab] = useState({});
 
   const [pinnedTooltip, setPinnedTooltip] = useState({});
@@ -1400,6 +1423,7 @@ export default function App() {
   const [moveFurnacesTogether, setMoveFurnacesTogether] = useState(true);
   const [moveFurnaceTarget, setMoveFurnaceTarget] = useState("first");
   const [furnaceOffsetsByRun, setFurnaceOffsetsByRun] = useState({});
+  const [focusModeByRun, setFocusModeByRun] = useState({});
 
   const [reportFromDate, setReportFromDate] = useState("");
   const [reportToDate, setReportToDate] = useState("");
@@ -3090,25 +3114,45 @@ const activeMillLabel =
                         <button
                           type="button"
                           aria-label="Filter 3D temperature scale to the lowest and highest elevation temperatures"
-                          onClick={() => filterElevationTemperatureScaleToRun(id)}
-                          style={{ ...S.tabBtn, padding: "5px 10px" }}
+                          onClick={() => {
+                            filterElevationTemperatureScaleToRun(id);
+                            setFocusModeByRun(prev => ({ ...prev, [id]: 'elevations' }));
+                          }}
+                          style={{ ...S.tabBtn, ...(focusModeByRun[id] === 'elevations' ? S.tabActive : {}), padding: "5px 10px" }}
                         >
                           ELEVATIONS
                         </button>
                         <button
                           type="button"
                           aria-label="Filter 3D temperature scale to the lowest and highest flue gas temperatures"
-                          onClick={() => filterFlueGasTemperatureScaleToRun(id)}
-                          style={{ ...S.tabBtn, padding: "5px 10px" }}
+                          onClick={() => {
+                            filterFlueGasTemperatureScaleToRun(id);
+                            setFocusModeByRun(prev => ({ ...prev, [id]: 'flueGas' }));
+                          }}
+                          style={{ ...S.tabBtn, ...(focusModeByRun[id] === 'flueGas' ? S.tabActive : {}), padding: "5px 10px" }}
                         >
                           FLUE GAS
                         </button>
+                        {focusModeByRun[id] === 'elevations' && (
+                          <button
+                            type="button"
+                            aria-label="Filter 3D temperature scale to the focused elevation tile's lowest and highest temperatures"
+                            onClick={() => {
+                              // Trigger temperature focus mode in the 3D view
+                              // The actual filtering will happen in Furnace3DView when a layer is focused
+                              setFocusModeByRun(prev => ({ ...prev, [id]: 'temperature' }));
+                            }}
+                            style={{ ...S.tabBtn, ...(focusModeByRun[id] === 'temperature' ? S.tabActive : {}), padding: "5px 10px" }}
+                          >
+                            TEMPERATURE
+                          </button>
+                        )}
                         
                         <span style={{ fontSize: 10, color: "rgba(180,210,255,0.5)", marginLeft: "auto" }}>
                           {moveFurnacesTogether ? "Mouse/touchpad movements sync both furnaces" : "Mouse/touchpad movements affect selected furnace only"}
                         </span>
                       </div>
-                      <Furnace3DView embedded runId={id} furnaceOffsets={furnaceOffsetsByRun[id] || [[0, 0], [0, 0]]} enableCameraSync={moveFurnacesTogether} />
+                      <Furnace3DView embedded runId={id} furnaceOffsets={furnaceOffsetsByRun[id] || [[0, 0], [0, 0]]} enableCameraSync={moveFurnacesTogether} temperatureFocusMode={focusModeByRun[id] === 'temperature'} />
                     </div>
                   ) : (
                     <>
