@@ -23,12 +23,20 @@ export default function FurnaceShell({ dimensions, visible = true, isFocusedView
   return shouldShow ? <FurnaceShellContent dimensions={dimensions} model={model} /> : null;
 }
 
+// Export WaterCooledTubes separately so it can be used in FurnaceScene
+export { WaterCooledTubes };
+
 function FurnaceShellContent({ dimensions, model }) {
   const { state } = useFurnaceStore();
   const { width, depth, height } = dimensions;
   const shellRef = useRef();
   const clippingIndicatorsRef = useRef([]);
-  
+
+  const lowestElevation = useMemo(() => {
+    const layerPositions = model?.layers?.map((layer) => layer.z).filter(Number.isFinite) ?? [];
+    return layerPositions.length ? Math.min(...layerPositions) : height * 0.5;
+  }, [model, height]);
+
   // Calculate the vertical span between the top and bottom layers for corner supports
   const cornerSupportData = useMemo(() => {
     if (model && model.layers && model.layers.length > 0) {
@@ -79,6 +87,7 @@ function FurnaceShellContent({ dimensions, model }) {
         height={height}
         depth={depth}
         explosionOffset={explosionOffset}
+        lowestElevation={lowestElevation}
       />
 
       {/* Static side burner ports aligned with the temperature elevations. */}
@@ -105,7 +114,7 @@ function FurnaceShellContent({ dimensions, model }) {
   );
 }
 
-function FurnaceFrame({ width, height, depth, explosionOffset }) {
+function FurnaceFrame({ width, height, depth, explosionOffset, lowestElevation }) {
   const geometry = useMemo(() => {
     const vertices = [];
     const addLine = (a, b) => vertices.push(...a, ...b);
@@ -174,6 +183,59 @@ function FurnaceFrame({ width, height, depth, explosionOffset }) {
     return new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
   }, [width, height, depth]);
 
+  // Define hopper dimensions at function level for use in tubes
+  const hopperY = height * 0.16;
+  const outletY = -height * 0.04;
+  const outletX = (width / 2) * 0.28;
+  const outletZ = (depth / 2) * 0.28;
+
+  // Water-cooled tubes follow the wireframe below the lowest measured layer.
+  const hopperTubes = useMemo(() => {
+    const tubes = [];
+    const tubeRadius = 0.16;
+    const numTubesPerSide = 4;
+
+    const addTube = (top, bottom) => {
+      const topPoint = new THREE.Vector3(...top);
+      const bottomPoint = new THREE.Vector3(...bottom);
+      const direction = topPoint.clone().sub(bottomPoint).normalize();
+      const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+      const rotation = new THREE.Euler().setFromQuaternion(quaternion);
+      const center = topPoint.add(bottomPoint).multiplyScalar(0.5);
+      tubes.push({
+        position: center.toArray(),
+        rotation: [rotation.x, rotation.y, rotation.z],
+        height: new THREE.Vector3(...top).distanceTo(new THREE.Vector3(...bottom)),
+        radius: tubeRadius,
+      });
+    };
+
+    const tubeTopY = Math.max(hopperY, Math.min(height, lowestElevation ?? hopperY));
+    const wallTubeHeight = tubeTopY - hopperY;
+    for (let i = 0; i < numTubesPerSide; i++) {
+      const progress = (i + 0.5) / numTubesPerSide;
+      const x = -width / 2 + width * progress;
+      const z = -depth / 2 + depth * progress;
+      if (wallTubeHeight > 0) {
+        addTube([x, tubeTopY, depth / 2], [x, hopperY, depth / 2]);
+        addTube([x, tubeTopY, -depth / 2], [x, hopperY, -depth / 2]);
+        addTube([-width / 2, tubeTopY, z], [-width / 2, hopperY, z]);
+        addTube([width / 2, tubeTopY, z], [width / 2, hopperY, z]);
+      }
+
+      const bottomX = -outletX + outletX * 2 * progress;
+      const bottomZ = -outletZ + outletZ * 2 * progress;
+      // Each hopper run contracts in both horizontal axes, matching the 3D
+      // corner-to-outlet slope instead of tapering in only one plane.
+      addTube([-width / 2 + width * progress, hopperY, depth / 2], [bottomX, outletY, outletZ]);
+      addTube([-width / 2 + width * progress, hopperY, -depth / 2], [bottomX, outletY, -outletZ]);
+      addTube([-width / 2, hopperY, -depth / 2 + depth * progress], [-outletX, outletY, bottomZ]);
+      addTube([width / 2, hopperY, -depth / 2 + depth * progress], [outletX, outletY, bottomZ]);
+    }
+
+    return tubes;
+  }, [width, height, depth, hopperY, outletY, outletX, outletZ, lowestElevation]);
+
   return (
     <group position={[explosionOffset.x, explosionOffset.y, explosionOffset.z]}>
       <lineSegments geometry={geometry} renderOrder={5}>
@@ -183,6 +245,20 @@ function FurnaceFrame({ width, height, depth, explosionOffset }) {
         <torusGeometry args={[width * 1.08, 0.58, 8, 72]} />
         <meshBasicMaterial color="#34372f" />
       </mesh>
+      {/* Water-cooled tubes */}
+      {hopperTubes.map((tube, index) => (
+        <mesh
+          key={`hopper-tube-${index}`}
+          position={tube.position}
+          rotation={tube.rotation}
+          castShadow
+          receiveShadow
+          renderOrder={20}
+        >
+          <cylinderGeometry args={[tube.radius, tube.radius, tube.height, 24]} />
+          <meshBasicMaterial color="#35cfff" toneMapped={false} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -501,6 +577,142 @@ function EnhancedClippingIndicators({ state, width, height, depth, clippingIndic
           />
         </mesh>
             )}
+    </group>
+  );
+}
+
+// ============================================================================
+// WATER-COOLED TUBES
+// ============================================================================
+
+/**
+ * WaterCooledTubes — vertical tubes along the wireframe below the lowest elevation.
+ * These tubes represent the water-cooled membrane walls in the lower hopper section.
+ */
+function WaterCooledTubes({ width, height, depth, lowestElevation, explosionOffset = { x: 0, y: 0, z: 0 } }) {
+  if (!width || !height || !depth) return null;
+
+  const hopperY = height * 0.16;
+  const outletY = -height * 0.04;
+  const tubeRadius = 0.16;
+  const outletX = (width / 2) * 0.28;
+  const outletZ = (depth / 2) * 0.28;
+
+  // Calculate tube positions along the hopper walls (following the tapered geometry)
+  const tubes = useMemo(() => {
+    const tubePositions = [];
+    const numTubesPerSide = 4;
+
+    // Front wall (positive Z) - tubes taper in X as they go down
+    for (let i = 0; i < numTubesPerSide; i++) {
+      const progress = (i + 0.5) / numTubesPerSide;
+      const topX = -width / 2 + width * progress;
+      const bottomX = -outletX + outletX * 2 * progress;
+      const midX = (topX + bottomX) / 2;
+      const midZ = depth / 2;
+      const midY = (hopperY + outletY) / 2;
+
+      // Calculate the actual height of this tapered tube
+      const dx = topX - bottomX;
+      const dy = hopperY - outletY;
+      const tubeHeight = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(-dx, dy);
+
+      tubePositions.push({
+        position: [midX + explosionOffset.x, midY + explosionOffset.y, midZ + explosionOffset.z],
+        height: tubeHeight,
+        rotation: [0, 0, angle]
+      });
+    }
+
+    // Back wall (negative Z) - tubes taper in X as they go down
+    for (let i = 0; i < numTubesPerSide; i++) {
+      const progress = (i + 0.5) / numTubesPerSide;
+      const topX = -width / 2 + width * progress;
+      const bottomX = -outletX + outletX * 2 * progress;
+      const midX = (topX + bottomX) / 2;
+      const midZ = -depth / 2;
+      const midY = (hopperY + outletY) / 2;
+
+      const dx = topX - bottomX;
+      const dy = hopperY - outletY;
+      const tubeHeight = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(-dx, dy);
+
+      tubePositions.push({
+        position: [midX + explosionOffset.x, midY + explosionOffset.y, midZ + explosionOffset.z],
+        height: tubeHeight,
+        rotation: [0, 0, angle]
+      });
+    }
+
+    // Left wall (negative X) - tubes taper in Z as they go down
+    for (let i = 0; i < numTubesPerSide; i++) {
+      const progress = (i + 0.5) / numTubesPerSide;
+      const topZ = -depth / 2 + depth * progress;
+      const bottomZ = -outletZ + outletZ * 2 * progress;
+      const midZ = (topZ + bottomZ) / 2;
+      const midX = -width / 2;
+      const midY = (hopperY + outletY) / 2;
+
+      const dz = topZ - bottomZ;
+      const dy = hopperY - outletY;
+      const tubeHeight = Math.sqrt(dz * dz + dy * dy);
+      const angle = Math.atan2(dz, dy);
+
+      tubePositions.push({
+        position: [midX + explosionOffset.x, midY + explosionOffset.y, midZ + explosionOffset.z],
+        height: tubeHeight,
+        rotation: [angle, 0, 0]
+      });
+    }
+
+    // Right wall (positive X) - tubes taper in Z as they go down
+    for (let i = 0; i < numTubesPerSide; i++) {
+      const progress = (i + 0.5) / numTubesPerSide;
+      const topZ = -depth / 2 + depth * progress;
+      const bottomZ = -outletZ + outletZ * 2 * progress;
+      const midZ = (topZ + bottomZ) / 2;
+      const midX = width / 2;
+      const midY = (hopperY + outletY) / 2;
+
+      const dz = topZ - bottomZ;
+      const dy = hopperY - outletY;
+      const tubeHeight = Math.sqrt(dz * dz + dy * dy);
+      const angle = Math.atan2(dz, dy);
+
+      tubePositions.push({
+        position: [midX + explosionOffset.x, midY + explosionOffset.y, midZ + explosionOffset.z],
+        height: tubeHeight,
+        rotation: [angle, 0, 0]
+      });
+    }
+
+    return tubePositions;
+  }, [width, height, depth, hopperY, outletY, outletX, outletZ, explosionOffset]);
+
+  return (
+    <group>
+      {tubes.map((tube, index) => (
+        <mesh
+          key={`water-tube-${index}`}
+          position={tube.position}
+          rotation={tube.rotation}
+          castShadow
+          receiveShadow
+          renderOrder={1000}
+        >
+          <cylinderGeometry args={[tubeRadius, tubeRadius, tube.height, 32]} />
+          <meshStandardMaterial
+            color="#ff6b00"
+            metalness={0.8}
+            roughness={0.2}
+            emissive="#ff4500"
+            emissiveIntensity={1.0}
+            envMapIntensity={3.0}
+          />
+        </mesh>
+      ))}
     </group>
   );
 }

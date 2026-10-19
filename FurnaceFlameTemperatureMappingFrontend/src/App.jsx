@@ -1317,11 +1317,11 @@ function getActiveMillsTextStyle(label) {
 export default function App() {
   const { width: windowWidth } = useWindowSize();
   const isNarrow = windowWidth < 760;
+  const showSideBySideGraphs = windowWidth >= 900;
   const isMobileSheet = windowWidth < 1100;
   // Below this, the sidebar becomes an overlay drawer instead of pushing content.
   const isCompactLayout = windowWidth < 1024;
   // Below this, the two side-by-side FTM comparison panels stack into one column.
-  const showSideBySideGraphs = windowWidth >= 900;
 
   const CHART_HEIGHT = 500;
 

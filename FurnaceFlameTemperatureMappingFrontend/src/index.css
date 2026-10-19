@@ -92,6 +92,18 @@
   padding: 0;
 }
 
+#root:empty::after {
+  content: "Loading Furnace Flame Temperature Mapping System…";
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: var(--color-slate-400);
+  background: #0f172a;
+  font: 500 14px Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: 0.04em;
+}
+
 html, body {
   background: linear-gradient(135deg, var(--color-slate-50) 0%, var(--color-slate-100) 100%);
   color: var(--color-slate-800);
@@ -845,4 +857,3 @@ a:hover {
 [data-theme="dark"] ::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, var(--color-indigo-500) 0%, var(--color-indigo-400) 100%);
 }
-      

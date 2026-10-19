@@ -3,7 +3,7 @@ import { Suspense, useRef, useEffect, forwardRef, useImperativeHandle, useState,
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, ContactShadows, Environment } from "@react-three/drei";
 import * as THREE from "three";
-import FurnaceShell from "./FurnaceShell";
+import FurnaceShell, { WaterCooledTubes } from "./FurnaceShell";
 import FurnaceLayers from "./FurnaceLayers";
 import BurnerSystem from "./BurnerSystem";
 import TemperatureField from "./TemperatureField";
@@ -81,36 +81,6 @@ function SceneLoadingOverlay() {
         <div style={styles.loadingSubtext}>Preparing furnace visualization</div>
       </div>
     </div>
-  );
-}
-
-/**
- * Visual separator for comparison mode
- */
-function ComparisonSeparator({ position }) {
-  return (
-    <group position={position}>
-      <mesh position={[0, 5, 0]}>
-        <boxGeometry args={[0.1, 10, 20]} />
-        <meshStandardMaterial
-          color="#3b82f6"
-          transparent
-          opacity={0.3}
-          emissive="#3b82f6"
-          emissiveIntensity={0.5}
-        />
-      </mesh>
-      <mesh position={[0, 5, 0]}>
-        <cylinderGeometry args={[0.3, 0.3, 10, 16]} />
-        <meshStandardMaterial
-          color="#22d3ee"
-          transparent
-          opacity={0.4}
-          emissive="#22d3ee"
-          emissiveIntensity={0.6}
-        />
-      </mesh>
-    </group>
   );
 }
 
@@ -284,7 +254,6 @@ const FurnaceScene = forwardRef(({ model, boilerParams, temperatureScaleKey = "d
   
   const { width, depth, height } = dimensions || { width: 1, depth: 1, height: 1 };
   const camDist = Math.max(width, depth, height) * 1.6;
-  const comparisonModel = state.comparisonModel;
 
   return (
     <>
@@ -345,17 +314,6 @@ const FurnaceScene = forwardRef(({ model, boilerParams, temperatureScaleKey = "d
             </>
           )}
           
-          {/* Enhanced comparison mode */}
-          {comparisonModel && !state.ctScanMode && (
-            <group position={[comparisonModel.dimensions.width + 4 + (furnaceOffsets[1]?.[0] || 0), 0, furnaceOffsets[1]?.[1] || 0]}>
-              <ComparisonSeparator position={[-2, 0, 0]} />
-              <FurnaceShell dimensions={comparisonModel.dimensions} model={comparisonModel} receiveShadow castShadow isFocusedView={state.isFocusedView} />
-              <SuperheaterCoils dimensions={comparisonModel.dimensions} />
-              <FurnaceLayers model={comparisonModel} boilerParams={boilerParams} temperatureScaleKey={temperatureScaleKey} receiveShadow castShadow />
-              <BurnerSystem model={comparisonModel} />
-              <TemperatureField model={comparisonModel} isFocusedView={state.isFocusedView} boilerParams={boilerParams} />
-            </group>
-          )}
         </Suspense>
         
         {/* Enhanced contact shadows */}

@@ -27,7 +27,6 @@ import InspectionPanel from "./panels/InspectionPanel";
 import Legend from "./panels/Legend";
 import PlaybackControls from "./panels/PlaybackControls";
 import ScenarioBuilder from "./panels/ScenarioBuilder";
-import ComparisonControls from "./panels/ComparisonControls";
 import ThresholdSettings from "./panels/ThresholdSettings";
 import SuggestionPanel from "./panels/SuggestionPanel";
 import CombustionControls from "./panels/CombustionControls";
@@ -754,7 +753,6 @@ function Furnace3DViewInner({ embedded = false, runId: requestedRunId = null, en
               {k:"scene",l:"3D VIEW"},
               {k:"inspector",l:"INSPECTOR"},
               {k:"playback",l:"PLAYBACK"},
-              {k:"compare",l:"COMPARE"},
               {k:"suggest",l:"SUGGEST"}
             ].filter(t => t.k !== "elevation").map((t) => (
               <button 
@@ -777,7 +775,6 @@ function Furnace3DViewInner({ embedded = false, runId: requestedRunId = null, en
             {mobileTab === "scene" && sceneEl}
             {mobileTab === "inspector" && <div style={{ overflowY:"auto", maxHeight:"70vh" }}><InspectionPanel model={model} /></div>}
             {mobileTab === "playback" && <div style={{ overflowY:"auto", maxHeight:"70vh" }}><PlaybackControls /></div>}
-            {mobileTab === "compare" && <div style={{ overflowY:"auto", maxHeight:"70vh" }}><ComparisonControls model={model} /></div>}
             {mobileTab === "suggest" && <div style={{ overflowY:"auto", maxHeight:"70vh" }}><SuggestionPanel /></div>}
           </div>
         </>
@@ -796,7 +793,6 @@ function Furnace3DViewInner({ embedded = false, runId: requestedRunId = null, en
           <aside style={{ ...styles.aside, ...styles.asideRight }}>
             <InspectionPanel model={model} />
             <PlaybackControls />
-            <ComparisonControls model={model} />
           </aside>
         </div>
       )}
