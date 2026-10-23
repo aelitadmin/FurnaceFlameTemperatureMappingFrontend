@@ -1,4 +1,4 @@
-import{a as e,n as t,t as n}from"./jsx-runtime-BHRyFc-h.js";import{t as r}from"./index-BFO4X6XT.js";import{t as i}from"./abhitech-logo-DszTi9Uw.js";var a=e(t(),1),o=n(),s=`
+import{a as e,n as t,t as n}from"./jsx-runtime-BHRyFc-h.js";import{t as r}from"./index-DlB6icrk.js";import{t as i}from"./abhitech-logo-DszTi9Uw.js";var a=e(t(),1),o=n(),s=`
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

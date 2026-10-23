@@ -216,23 +216,13 @@ function FurnaceFrame({ width, height, depth, explosionOffset, lowestElevation }
       faces[3].push(makeRun([width / 2, tubeTopY, z], [width / 2, hopperY, z], [outletX, outletY, bottomZ]));
     }
 
-    // A continuous path snakes down each face and turns back between runs.
+    // Each tube now goes straight from top to bottom without loops/bends.
     faces.forEach((runs) => {
-      if (runs.length < 2) return;
-      const points = [];
-      runs.forEach((run, index) => {
-        const orderedRun = index % 2 === 0 ? run : [...run].reverse();
-        if (index === 0) points.push(...orderedRun);
-        else {
-          const previousEnd = points[points.length - 1];
-          const nextStart = orderedRun[0];
-          const bend = previousEnd.clone().add(nextStart).multiplyScalar(0.5);
-          bend.y += previousEnd.y <= hopperY ? -0.26 : 0.26;
-          points.push(bend, nextStart, ...orderedRun.slice(1));
-        }
+      runs.forEach((run) => {
+        const points = run;
+        const path = new THREE.CatmullRomCurve3(points, false, "centripetal", 0.25);
+        tubes.push({ radius: tubeRadius, geometry: new THREE.TubeGeometry(path, 64, tubeRadius, 10, false) });
       });
-      const path = new THREE.CatmullRomCurve3(points, false, "centripetal", 0.25);
-      tubes.push({ radius: tubeRadius, geometry: new THREE.TubeGeometry(path, 360, tubeRadius, 10, false) });
     });
 
     return tubes;
