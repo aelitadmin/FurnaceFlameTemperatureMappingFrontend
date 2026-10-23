@@ -193,7 +193,7 @@ function FurnaceFrame({ width, height, depth, explosionOffset, lowestElevation }
   const hopperTubes = useMemo(() => {
     const tubes = [];
     const tubeRadius = 0.16;
-    const numTubesPerSide = 4;
+    const numTubesPerSide = 8;
 
     const tubeTopY = Math.max(hopperY, Math.min(height, lowestElevation ?? hopperY));
     const wallTubeHeight = tubeTopY - hopperY;
@@ -592,7 +592,7 @@ function WaterCooledTubes({ width, height, depth, lowestElevation, explosionOffs
   // Calculate tube positions along the hopper walls (following the tapered geometry)
   const tubes = useMemo(() => {
     const tubePositions = [];
-    const numTubesPerSide = 4;
+    const numTubesPerSide = 8;
 
     // Front wall (positive Z) - tubes taper in X as they go down
     for (let i = 0; i < numTubesPerSide; i++) {
