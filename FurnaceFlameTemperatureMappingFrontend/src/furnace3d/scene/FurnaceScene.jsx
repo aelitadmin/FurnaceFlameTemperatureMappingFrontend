@@ -123,12 +123,41 @@ function SceneLoadingOverlay() {
 const FurnaceScene = forwardRef(({ model, boilerParams, temperatureScaleKey = "default", onResetCameraRef, onControlsReady, onControlsRemoved, furnaceOffsets = [[0, 0], [0, 0]] }, ref) => {
   const controlsRef = useRef();
   const sceneRef = useRef();
+  const sceneContainerRef = useRef();
+  const lastTouchTapRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { state, setModel } = useFurnaceStore();
+  const { state, setModel, clearFocusedLayer } = useFurnaceStore();
   const targetPositionRef = useRef(null);
   const targetLookAtRef = useRef(null);
   const registeredControlsRef = useRef(null);
   const [showOrbitHint, setShowOrbitHint] = useState(true);
+
+  // Let a double-click or double-tap anywhere in the scene exit focused
+  // elevation mode, including taps on overlay elements that stop R3F bubbling.
+  useEffect(() => {
+    const container = sceneContainerRef.current;
+    if (!container) return undefined;
+
+    const exitFocus = () => {
+      if (state.isFocusedView) clearFocusedLayer();
+    };
+    const handleTouchTap = (event) => {
+      if (event.pointerType !== "touch" || !state.isFocusedView) return;
+      const now = Date.now();
+      const previousTap = lastTouchTapRef.current;
+      const isDoubleTap = previousTap && now - previousTap.time <= 350 &&
+        Math.hypot(event.clientX - previousTap.x, event.clientY - previousTap.y) <= 32;
+      lastTouchTapRef.current = isDoubleTap ? null : { time: now, x: event.clientX, y: event.clientY };
+      if (isDoubleTap) exitFocus();
+    };
+
+    container.addEventListener("dblclick", exitFocus, true);
+    container.addEventListener("pointerup", handleTouchTap, true);
+    return () => {
+      container.removeEventListener("dblclick", exitFocus, true);
+      container.removeEventListener("pointerup", handleTouchTap, true);
+    };
+  }, [state.isFocusedView, clearFocusedLayer]);
 
   useEffect(() => {
     if (!model || isLoading) return undefined;
@@ -300,7 +329,7 @@ const FurnaceScene = forwardRef(({ model, boilerParams, temperatureScaleKey = "d
   const camDist = Math.max(width, depth, height) * 1.6;
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", minHeight: 0 }}>
+    <div ref={sceneContainerRef} style={{ position: "relative", width: "100%", height: "100%", minHeight: 0 }}>
       {isLoading && <SceneLoadingOverlay />}
       {model ? (
       <Canvas
