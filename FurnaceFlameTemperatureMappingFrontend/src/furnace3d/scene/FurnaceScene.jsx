@@ -65,6 +65,42 @@ function CameraAnimator({ targetPositionRef, targetLookAtRef, controlsRef }) {
   return null;
 }
 
+function FurnaceOrbitGuide({ width, depth, height }) {
+  const guideRef = useRef();
+  const startedAt = useRef(null);
+  const radiusX = Math.max(width, depth) * 0.68;
+  const radiusZ = Math.max(width, depth) * 0.68;
+  const points = useMemo(() => Array.from({ length: 129 }, (_, index) => {
+    const angle = (index / 128) * Math.PI * 2;
+    return new THREE.Vector3(Math.cos(angle) * radiusX, 0, Math.sin(angle) * radiusZ);
+  }), [radiusX, radiusZ]);
+
+  useFrame(({ clock }) => {
+    if (!guideRef.current) return;
+    if (startedAt.current === null) startedAt.current = clock.elapsedTime;
+    const elapsed = clock.elapsedTime - startedAt.current;
+    guideRef.current.rotation.y = -elapsed * Math.PI * 2 / 1.5;
+    guideRef.current.traverse((object) => {
+      if (object.material) object.material.opacity = THREE.MathUtils.clamp(1 - elapsed / 3, 0, 1);
+    });
+  });
+
+  return (
+    <group ref={guideRef} position={[0, height / 2, 0]}>
+      <line>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[new Float32Array(points.flatMap((point) => point.toArray())), 3]} />
+        </bufferGeometry>
+        <lineBasicMaterial color="#67e8f9" transparent opacity={0.85} depthTest={false} />
+      </line>
+      <mesh position={[radiusX, 0, 0]} rotation={[Math.PI / 2, 0, -Math.PI / 2]}>
+        <coneGeometry args={[Math.max(width, depth) * 0.035, Math.max(width, depth) * 0.11, 3]} />
+        <meshBasicMaterial color="#a5f3fc" transparent opacity={1} depthTest={false} />
+      </mesh>
+    </group>
+  );
+}
+
 /**
  * Enhanced loading overlay with beautiful animation
  */
@@ -92,6 +128,14 @@ const FurnaceScene = forwardRef(({ model, boilerParams, temperatureScaleKey = "d
   const targetPositionRef = useRef(null);
   const targetLookAtRef = useRef(null);
   const registeredControlsRef = useRef(null);
+  const [showOrbitHint, setShowOrbitHint] = useState(true);
+
+  useEffect(() => {
+    if (!model || isLoading) return undefined;
+    setShowOrbitHint(true);
+    const timer = window.setTimeout(() => setShowOrbitHint(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [model, isLoading]);
 
   // Register as soon as Drei creates the controls. A callback ref is important
   // here because the controls live inside the Canvas renderer tree.
@@ -256,7 +300,7 @@ const FurnaceScene = forwardRef(({ model, boilerParams, temperatureScaleKey = "d
   const camDist = Math.max(width, depth, height) * 1.6;
 
   return (
-    <>
+    <div style={{ position: "relative", width: "100%", height: "100%", minHeight: 0 }}>
       {isLoading && <SceneLoadingOverlay />}
       {model ? (
       <Canvas
@@ -291,6 +335,9 @@ const FurnaceScene = forwardRef(({ model, boilerParams, temperatureScaleKey = "d
         <SceneLighting />
         
         <Suspense fallback={null}>
+          {showOrbitHint && !isLoading && !state.ctScanMode && (
+            <FurnaceOrbitGuide width={width} depth={depth} height={height} />
+          )}
           {state.ctScanMode ? (
             <FurnaceLayers model={model} boilerParams={boilerParams} temperatureScaleKey={temperatureScaleKey} receiveShadow castShadow />
           ) : state.isFocusedView ? (
@@ -363,7 +410,7 @@ const FurnaceScene = forwardRef(({ model, boilerParams, temperatureScaleKey = "d
         />
       </Canvas>
       ) : null}
-    </>
+    </div>
   );
 });
 
