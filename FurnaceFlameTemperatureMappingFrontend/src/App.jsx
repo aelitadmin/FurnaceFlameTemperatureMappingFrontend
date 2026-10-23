@@ -3097,7 +3097,7 @@ const activeMillLabel =
                       { k: "raw", l: "RAW DATA" },
                       { k: "boiler", l: "BOILER PARAMS" },
                       { k: "coal", l: "COAL MILLS" },
-                      { k: "3d", l: "3D VIEW" },
+                      
                     ].map(({ k, l }) => (
                       <button key={k} onClick={() => setTab(id, k)} style={{ ...S.tabBtn, ...(getTab(id) === k ? S.tabActive : {}) }}>{l}</button>
                     ))}
