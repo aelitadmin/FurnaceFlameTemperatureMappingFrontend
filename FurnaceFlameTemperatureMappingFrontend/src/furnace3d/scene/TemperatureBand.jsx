@@ -92,6 +92,12 @@ function flueGasTemperatureAt(boilerParams, y, xNorm, zNorm, height, leftWall, r
     }
   }
 
+  // Also apply coil gradient to top surface for the entire coil section height range
+  // This ensures the top face matches the front/back faces for dpsh, psh, rh, hsh areas
+  if (onTopSurface && altitude >= coilSectionBottom) {
+    return getCoilTempAtX(xNorm);
+  }
+
   // For areas outside coil section, return null to use furnace layer temperatures
   return null;
 }
@@ -223,6 +229,11 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
       }
       const zNorm = THREE.MathUtils.clamp(z / (model.dimensions.depth * 0.99) + 0.5, 0, 1);
 
+      // Detect if this vertex is on the top face
+      const altitude = y / model.dimensions.height;
+      const onTopSurface = altitude >= 0.998;
+      const onFrontOrBackWall = zNorm <= 0.002 || zNorm >= 0.998;
+
       let low = layers[0];
       let high = layers[layers.length - 1];
       let temp;
@@ -253,6 +264,14 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
         const progress = THREE.MathUtils.clamp((y / model.dimensions.height - 0.72) / 0.1, 0, 1);
         const blend = THREE.MathUtils.smoothstep(progress, 0, 1);
         temp = temp == null ? flueTemp : THREE.MathUtils.lerp(temp, flueTemp, blend);
+      }
+
+      // Explicitly apply coil gradient to top surface in coil section to match front/back faces
+      if (onTopSurface && altitude >= 0.72) {
+        const coilTemp = flueGasTemperatureAt(boilerParams, y, xNorm, zNorm, model.dimensions.height, false, false, model.dimensions.width, layers[layers.length - 1].temperature?.avg);
+        if (coilTemp != null) {
+          temp = coilTemp;
+        }
       }
       const color = new THREE.Color(temperatureToColor(temp, thresholds.alert, thresholds.warn, temperatureScaleKey));
       colors[i * 3] = color.r;
