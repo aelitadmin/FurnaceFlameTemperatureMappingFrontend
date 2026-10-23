@@ -44,9 +44,6 @@ export default function TemperatureColorLegend({ temperatureScaleKey = "default"
 
         <div style={{ display: "flex", gap: 9, height: 316, alignItems: "stretch" }}>
           <div style={{ position: "relative", width: 18, flex: "0 0 18px", border: "1px solid rgba(255,255,255,.55)", borderRadius: 3, background: `linear-gradient(to top, ${gradient})`, boxShadow: "0 0 12px rgba(88,166,255,.15)" }}>
-            {[{ pct: warnPct, color: "#ffe16a" }, { pct: alertPct, color: "#ff7183" }].map((item) => (
-              <span key={item.color} style={{ position: "absolute", left: -4, top: `${100 - item.pct}%`, width: 24, height: 2, background: item.color, boxShadow: `0 0 5px ${item.color}` }} />
-            ))}
           </div>
           <div style={{ position: "relative", flex: 1, font: "600 15px ui-monospace, SFMono-Regular, monospace", color: "#bdcbe0" }}>
             {ticks.map((tick) => {
@@ -60,10 +57,7 @@ export default function TemperatureColorLegend({ temperatureScaleKey = "default"
           </div>
         </div>
 
-        <footer style={{ display: "grid", gap: 5, marginTop: 10, paddingTop: 8, borderTop: "1px solid rgba(148,184,230,.14)", color: "#cbd6e6", fontSize: 15, fontWeight: 650 }}>
-          <span><i style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#ffe16a", marginRight: 5 }} />WARN {warn}°</span>
-          <span><i style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#ff7183", marginRight: 5 }} />ALERT {alert}°</span>
-        </footer>
+
       </section>
     </Html>
   );

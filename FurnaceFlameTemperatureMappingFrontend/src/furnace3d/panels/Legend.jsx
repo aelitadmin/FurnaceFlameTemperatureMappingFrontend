@@ -106,11 +106,7 @@ function TemperatureGradientBar({ thresholds, temperatureScaleKey = "default" })
           </div>
         ))}
 
-        {/* Threshold marker lines */}
-        <div style={{ ...styles.thresholdLine, left: `${warnPct}%`, borderColor: "rgba(245, 158, 11, 0.6)" }} />
-        <div style={{ ...styles.thresholdLine, left: `${alertPct}%`, borderColor: "rgba(239, 68, 68, 0.7)" }} />
-        <span style={{ ...styles.thresholdLabel, left: `${warnPct}%` }}>WARN {thresholds?.warn ?? 1300}°C</span>
-        <span style={{ ...styles.thresholdLabel, left: `${alertPct}%` }}>ALERT {thresholds?.alert ?? 1350}°C</span>
+
 
         {/* The gradient bar itself */}
         <div
@@ -143,8 +139,6 @@ function STATUS_BANDS(thresholds) {
     { label: "Cool",     temp: 800,  color: temperatureToColor(800, thresholds?.alert, thresholds?.warn) },
     { label: "Normal",   temp: 1000, color: temperatureToColor(1000, thresholds?.alert, thresholds?.warn) },
     { label: "Warm",     temp: 1100, color: temperatureToColor(1100, thresholds?.alert, thresholds?.warn) },
-    { label: "WARN",     temp: thresholds?.warn ?? 1300,  color: temperatureToColor(thresholds?.warn ?? 1300, thresholds?.alert, thresholds?.warn) },
-    { label: "ALERT",    temp: thresholds?.alert ?? 1350, color: temperatureToColor(thresholds?.alert ?? 1350, thresholds?.alert, thresholds?.warn) },
     { label: "Critical", temp: 1400, color: temperatureToColor(1400, thresholds?.alert, thresholds?.warn) },
     { label: "Hot",      temp: 1500, color: temperatureToColor(1500, thresholds?.alert, thresholds?.warn) },
   ];
@@ -199,8 +193,6 @@ function CornerTemperatureScale({ thresholds, temperatureScaleKey = "default" })
     { temp: 800, color: temperatureToColor(800, thresholds.alert, thresholds.warn, temperatureScaleKey), label: "Cool" },
     { temp: 1000, color: temperatureToColor(1000, thresholds.alert, thresholds.warn, temperatureScaleKey), label: "Normal" },
     { temp: 1100, color: temperatureToColor(1100, thresholds.alert, thresholds.warn, temperatureScaleKey), label: "Warm" },
-    { temp: thresholds.warn, color: temperatureToColor(thresholds.warn, thresholds.alert, thresholds.warn, temperatureScaleKey), label: "WARN" },
-    { temp: thresholds.alert, color: temperatureToColor(thresholds.alert, thresholds.alert, thresholds.warn, temperatureScaleKey), label: "ALERT" },
     { temp: 1400, color: temperatureToColor(1400, thresholds.alert, thresholds.warn, temperatureScaleKey), label: "Critical" },
   ];
 
