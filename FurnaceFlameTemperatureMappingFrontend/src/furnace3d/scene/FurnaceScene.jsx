@@ -12,6 +12,7 @@ import AIPrediction from "./AIPrediction";
 import { useFurnaceStore } from "../state/FurnaceStore";
 import SceneLighting from "./SceneLightening";
 import TemperatureColorLegend from "./TemperatureColorLegend";
+import FlueGasFlow from "./FlueGasFlow";
 
 /**
  * Enhanced FurnaceScene with beautiful UI/UX improvements.
@@ -379,6 +380,7 @@ const FurnaceScene = forwardRef(({ model, boilerParams, temperatureScaleKey = "d
               <group position={[furnaceOffsets[0]?.[0] || 0, 0, furnaceOffsets[0]?.[1] || 0]}>
               <FurnaceLayers model={model} boilerParams={boilerParams} temperatureScaleKey={temperatureScaleKey} receiveShadow castShadow />
               <FurnaceShell dimensions={model.dimensions} model={model} receiveShadow castShadow isFocusedView={state.isFocusedView} plantId={state.plantId || "default"} />
+              <FlueGasFlow dimensions={model.dimensions} />
               <SuperheaterCoils dimensions={model.dimensions} />
               <BurnerSystem model={model} />
               {(state.explodedView || state.sectionalView === "isolated" ||
