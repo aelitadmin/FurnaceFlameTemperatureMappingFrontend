@@ -192,8 +192,8 @@ function FurnaceFrame({ width, height, depth, explosionOffset, lowestElevation }
   // Water-cooled tubes follow the wireframe below the lowest measured layer.
   const hopperTubes = useMemo(() => {
     const tubes = [];
-    const tubeRadius = 0.16;
-    const numTubesPerSide = 8;
+    const tubeRadius = 0.12;
+    const numTubesPerSide = 14;
 
     const tubeTopY = Math.max(hopperY, Math.min(height, lowestElevation ?? hopperY));
     const wallTubeHeight = tubeTopY - hopperY;
@@ -585,14 +585,14 @@ function WaterCooledTubes({ width, height, depth, lowestElevation, explosionOffs
 
   const hopperY = height * 0.16;
   const outletY = -height * 0.04;
-  const tubeRadius = 0.16;
+  const tubeRadius = 0.12;
   const outletX = (width / 2) * 0.28;
   const outletZ = (depth / 2) * 0.28;
 
   // Calculate tube positions along the hopper walls (following the tapered geometry)
   const tubes = useMemo(() => {
     const tubePositions = [];
-    const numTubesPerSide = 8;
+    const numTubesPerSide = 14;
 
     // Front wall (positive Z) - tubes taper in X as they go down
     for (let i = 0; i < numTubesPerSide; i++) {
