@@ -2,15 +2,16 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-/** A broad shadow plane that rises through the boiler and turns across the upper banks. */
+/** A soft, inset shadow that rises through the boiler and turns across the upper banks. */
 export default function FlueGasFlow({ dimensions }) {
   const { width, depth, height } = dimensions;
   const faceRefs = useRef([]);
+  const bandThickness = height * 0.085;
   const faces = [
-    { position: [0, 0, depth / 2 + 0.04], rotation: [0, 0, 0], span: width },
-    { position: [0, 0, -depth / 2 - 0.04], rotation: [0, Math.PI, 0], span: width },
-    { position: [width / 2 + 0.04, 0, 0], rotation: [0, Math.PI / 2, 0], span: depth },
-    { position: [-width / 2 - 0.04, 0, 0], rotation: [0, -Math.PI / 2, 0], span: depth },
+    { position: [0, 0, depth / 2 - 0.025], rotation: [0, 0, 0], span: width },
+    { position: [0, 0, -depth / 2 + 0.025], rotation: [0, Math.PI, 0], span: width },
+    { position: [width / 2 - 0.025, 0, 0], rotation: [0, Math.PI / 2, 0], span: depth },
+    { position: [-width / 2 + 0.025, 0, 0], rotation: [0, -Math.PI / 2, 0], span: depth },
   ];
 
   useFrame(({ clock }) => {
@@ -29,7 +30,7 @@ export default function FlueGasFlow({ dimensions }) {
       : turning
         ? THREE.MathUtils.lerp(height * 0.79, height * 0.86, turn)
         : height * 0.86;
-    const alpha = 0.42 + Math.sin(t * 2.2) * 0.035;
+    const alpha = 0.14 + Math.sin(t * 2.2) * 0.012;
 
     faceRefs.current.forEach((plane, index) => {
       if (!plane) return;
@@ -63,31 +64,45 @@ export default function FlueGasFlow({ dimensions }) {
       plane.rotation.z = progress < riseEnd
         ? 0
         : turning
-          ? THREE.MathUtils.lerp(0, Math.PI / 2, turn)
-          : Math.PI / 2;
-      plane.material.opacity = alpha;
+          ? THREE.MathUtils.lerp(0, -Math.PI / 2, turn)
+          : -Math.PI / 2;
+      plane.material.uniforms.opacity.value = alpha;
     });
   });
 
   return (
-    <group renderOrder={30}>
+      <group renderOrder={2}>
       {faces.map((face, index) => (
         <mesh
           key={index}
           ref={(node) => { faceRefs.current[index] = node; }}
           position={face.position}
           rotation={face.rotation}
-          renderOrder={30}
+          renderOrder={2}
         >
-          <planeGeometry args={[face.span * 1.04, height * 0.12]} />
-          <meshBasicMaterial
-            color="#080a0f"
+          <planeGeometry args={[face.span, bandThickness]} />
+          <shaderMaterial
             transparent
-            opacity={0.42}
-            depthTest={false}
+            depthTest
             depthWrite={false}
             side={THREE.DoubleSide}
             toneMapped={false}
+            uniforms={{ opacity: { value: 0.14 } }}
+            vertexShader={`
+              varying vec2 vUv;
+              void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `}
+            fragmentShader={`
+              uniform float opacity;
+              varying vec2 vUv;
+              void main() {
+                float edgeFade = smoothstep(0.0, 0.22, vUv.y) * (1.0 - smoothstep(0.78, 1.0, vUv.y));
+                gl_FragColor = vec4(vec3(0.025, 0.03, 0.045), opacity * edgeFade);
+              }
+            `}
           />
         </mesh>
       ))}
