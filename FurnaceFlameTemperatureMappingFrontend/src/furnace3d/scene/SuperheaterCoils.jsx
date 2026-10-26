@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { Html } from "@react-three/drei";
 
 /** Superheater coils shown as brown serpentine pipes. */
-export default function SuperheaterCoils({ dimensions }) {
+export default function SuperheaterCoils({ dimensions, boilerParams }) {
   const { width, depth, height } = dimensions;
   const banks = useMemo(() => {
     const configs = [
@@ -66,8 +66,20 @@ export default function SuperheaterCoils({ dimensions }) {
       {banks.map((bank) => (
         <group key={bank.id} position={[bank.x, bank.y, 0]}>
           <CoilRows bank={bank} />
-          <Html position={[0, 0, bank.casingDepth / 2 + 0.06]} center style={{ pointerEvents: "none" }}>
-            <div style={coilLabelStyle}>{bank.id.toUpperCase()}</div>
+          <Html position={[0, height * 1.025 - bank.y, bank.casingDepth / 2 + 0.06]} center style={{ pointerEvents: "none" }}>
+            <div style={coilReadoutStyle}>
+              <div style={coilHeadingStyle}>{bank.id.toUpperCase()}</div>
+              <div style={coilValuesStyle}>
+                <div style={coilSideStyle}>
+                  <span style={coilSideLabelStyle}>L</span>
+                  <span style={coilTempStyle}>{formatTemperature(boilerParams?.[`fg_temp_after_${bank.id}_l`])}</span>
+                </div>
+                <div style={coilSideStyle}>
+                  <span style={coilSideLabelStyle}>R</span>
+                  <span style={coilTempStyle}>{formatTemperature(boilerParams?.[`fg_temp_after_${bank.id}_r`])}</span>
+                </div>
+              </div>
+            </div>
           </Html>
         </group>
       ))}
@@ -102,12 +114,65 @@ function CoilRows({ bank }) {
 
 
 
-const coilLabelStyle = {
-  color: "#ffffff",
-  fontFamily: "Arial, sans-serif",
-  fontSize: "22px",
-  fontWeight: 800,
-  lineHeight: 1,
+function formatTemperature(value) {
+  return value != null && value !== "" && Number.isFinite(Number(value))
+    ? `${Number(value).toFixed(0)}°C`
+    : "—";
+}
+
+const coilReadoutStyle = {
+  display: "grid",
+  gap: "4px",
+  width: "44px",
+  boxSizing: "border-box",
+  padding: "5px 3px",
+  borderRadius: "7px",
+  background: "rgba(8, 16, 30, .94)",
+  border: "1px solid rgba(125, 183, 255, .55)",
+  boxShadow: "0 3px 9px rgba(0,0,0,.38)",
   whiteSpace: "nowrap",
-  textShadow: "0 1px 3px #000, 0 0 5px #000",
 };
+
+const coilHeadingStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "5px",
+  color: "#f4f8ff",
+  fontFamily: "Arial, sans-serif",
+  fontSize: "11px",
+  fontWeight: 800,
+  letterSpacing: ".09em",
+  lineHeight: 1,
+};
+
+const coilValuesStyle = {
+  display: "grid",
+  gap: "3px",
+  fontFamily: "Arial, sans-serif",
+};
+
+const coilSideStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "2px 3px",
+  borderRadius: "4px",
+  background: "rgba(255,255,255,.07)",
+};
+
+const coilSideLabelStyle = {
+  color: "#9bb0ca",
+  fontSize: "8px",
+  fontWeight: 700,
+  letterSpacing: ".08em",
+};
+
+const coilTempStyle = {
+  color: "#ffffff",
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+  fontSize: "8px",
+  fontWeight: 750,
+  lineHeight: 1,
+};
+

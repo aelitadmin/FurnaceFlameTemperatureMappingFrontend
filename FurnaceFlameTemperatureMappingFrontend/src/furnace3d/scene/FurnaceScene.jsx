@@ -376,7 +376,7 @@ const FurnaceScene = forwardRef(({ model, boilerParams, temperatureScaleKey = "d
               <FurnaceLayers model={model} boilerParams={boilerParams} temperatureScaleKey={temperatureScaleKey} receiveShadow castShadow />
               <FurnaceShell dimensions={model.dimensions} model={model} receiveShadow castShadow isFocusedView={state.isFocusedView} plantId={state.plantId || "default"} />
               <FlueGasFlow dimensions={model.dimensions} />
-              <SuperheaterCoils dimensions={model.dimensions} />
+              <SuperheaterCoils dimensions={model.dimensions} boilerParams={boilerParams} />
               <BurnerSystem model={model} />
               {(state.explodedView || state.sectionalView === "isolated" ||
                 model.layers.some((layer) => state.layerVisibility[layer.id] === false)) && (
