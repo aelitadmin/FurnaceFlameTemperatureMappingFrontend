@@ -14,9 +14,9 @@ export default function SuperheaterCoils({ dimensions }) {
     ];
     const casingWidth = width * 0.15;
     const casingDepth = depth * 0.5;
-    const pipeRadius = Math.max(0.045, width * 0.0048);
-    const rowCount = 5;
-    const passes = 4;
+    const pipeRadius = Math.max(0.025, width * 0.0028);
+    const rowCount = 8;
+    const passes = 6;
 
     return configs.map((config) => {
       const xLeft = -casingWidth * 0.39;

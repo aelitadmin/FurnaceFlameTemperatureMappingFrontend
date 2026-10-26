@@ -68,17 +68,24 @@ function CornerMarker({ corner, dimensions, face, opacity }) {
 function FrontEndSquares({ dimensions, isTopLayer, isBottomLayer }) {
   const z = dimensions.depth * 1.04 / 2 + 0.04;
   const x = dimensions.width * 1.04 / 2 - 0.4;
-  const marks = [
-    ...(isTopLayer ? [[-x, LAYER_THICKNESS / 2], [x, LAYER_THICKNESS / 2]] : []),
-    ...(isBottomLayer ? [[-x, -LAYER_THICKNESS / 2], [x, -LAYER_THICKNESS / 2]] : []),
-  ];
+  const shadowWidth = 0.02; // Thinner width of the shadow line (horizontal)
+  const shadowHeight = 0.003; // Even thinner vertical height to look like a shadow line
+  const numSquares = 80; // Much higher frequency to show air flow pattern
+
+  const marks = [];
+  // Generate squares distributed across the width
+  for (let i = 0; i < numSquares; i++) {
+    const xPos = -x + (i / (numSquares - 1)) * (2 * x);
+    if (isTopLayer) marks.push([xPos, LAYER_THICKNESS / 2]);
+    if (isBottomLayer) marks.push([xPos, -LAYER_THICKNESS / 2]);
+  }
 
   return marks.map(([markX, y], index) => (
-    <Billboard key={`${markX}-${y}-${index}`} position={[markX, y, z]} renderOrder={8}>
+    <group key={`${markX}-${y}-${index}`} position={[markX, y, z]}>
       <mesh renderOrder={8}>
-        <planeGeometry args={[0.28, 0.28]} />
-        <meshBasicMaterial color="#f1f3f5" toneMapped={false} depthTest={false} depthWrite={false} />
+        <planeGeometry args={[shadowWidth, shadowHeight]} />
+        <meshBasicMaterial color="#000000" toneMapped={false} depthTest={false} depthWrite={false} />
       </mesh>
-    </Billboard>
+    </group>
   ));
 }
