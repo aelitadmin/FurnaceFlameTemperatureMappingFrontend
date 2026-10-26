@@ -68,7 +68,6 @@ function CameraAnimator({ targetPositionRef, targetLookAtRef, controlsRef }) {
 
 function FurnaceOrbitGuide({ width, depth, height }) {
   const guideRef = useRef();
-  const startedAt = useRef(null);
   const radiusX = Math.max(width, depth) * 0.68;
   const radiusZ = Math.max(width, depth) * 0.68;
   const points = useMemo(() => Array.from({ length: 129 }, (_, index) => {
@@ -78,16 +77,12 @@ function FurnaceOrbitGuide({ width, depth, height }) {
 
   useFrame(({ clock }) => {
     if (!guideRef.current) return;
-    if (startedAt.current === null) startedAt.current = clock.elapsedTime;
-    const elapsed = clock.elapsedTime - startedAt.current;
+    const elapsed = clock.elapsedTime;
     guideRef.current.rotation.y = -elapsed * Math.PI * 2 / 1.5;
-    guideRef.current.traverse((object) => {
-      if (object.material) object.material.opacity = THREE.MathUtils.clamp(1 - elapsed / 3, 0, 1);
-    });
   });
 
   return (
-    <group ref={guideRef} position={[0, height / 2, 0]}>
+    <group ref={guideRef} position={[0, 0, 0]}>
       <line>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[new Float32Array(points.flatMap((point) => point.toArray())), 3]} />
