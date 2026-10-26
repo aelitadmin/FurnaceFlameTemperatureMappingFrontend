@@ -3,14 +3,22 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { getTemperatureScaleRange, temperatureToColor } from "../utils/temperatureScale";
 
-function layerTemperatureAt(layer, x, z) {
+const TOP_ELEVATION_TEMP_BOOST_C = 50;
+
+function layerTemperatureAt(layer, x, z, temperatureOffset = 0) {
   const values = [
     layer.temperature?.c1,
     layer.temperature?.c2,
     layer.temperature?.c3,
     layer.temperature?.c4,
-  ].map((value) => value ?? layer.temperature?.avg ?? null);
-  if (values.some((value) => value == null)) return layer.temperature?.avg ?? null;
+  ].map((value) => {
+    const temperature = value ?? layer.temperature?.avg ?? null;
+    return temperature == null ? null : Number(temperature) + temperatureOffset;
+  });
+  if (values.some((value) => value == null)) {
+    const average = layer.temperature?.avg;
+    return average == null ? null : Number(average) + temperatureOffset;
+  }
   // Front face (z+) is c1 on the left and c4 on the right. The opposite
   // face (z-) is c2 on the left and c3 on the right.
   const back = THREE.MathUtils.lerp(values[1], values[2], x);
@@ -18,7 +26,7 @@ function layerTemperatureAt(layer, x, z) {
   return THREE.MathUtils.lerp(back, front, z);
 }
 
-function flueGasTemperatureAt(boilerParams, y, xNorm, zNorm, height, leftWall, rightWall, width, topTileTemp) {
+function flueGasTemperatureAt(boilerParams, y, xNorm, zNorm, height, leftWall, rightWall, width) {
   // These readings describe the coil pass sequence from top to bottom.
   // Coil positions from left to right: DPSH, PSH, RH, HSH
   const coilPositions = [
@@ -33,25 +41,10 @@ function flueGasTemperatureAt(boilerParams, y, xNorm, zNorm, height, leftWall, r
 
   if (coilPositions.length === 0) return null;
 
-  const dpsh = coilPositions.find((coil) => coil.xNorm === 0.12);
-  // Treat the upper-left cap as four consecutive interpolation zones. This
-  // gives the sparse readings a broader, gradual transition across that
-  // block instead of averaging the top tile and DPSH into one flat patch.
-  const leftBlendTemp = dpsh && topTileTemp != null ? topTileTemp : dpsh?.temp;
-
   // Interpolate temperature horizontally based on coil positions
   const getCoilTempAtX = (x) => {
     if (coilPositions.length === 1) return coilPositions[0].temp;
-    if (x < coilPositions[0].xNorm) {
-      if (leftBlendTemp == null) return coilPositions[0].temp;
-      const progress = THREE.MathUtils.clamp(x / coilPositions[0].xNorm, 0, 1);
-      const zone = Math.min(3, Math.floor(progress * 4));
-      const zoneStart = zone / 4;
-      const zoneProgress = THREE.MathUtils.smoothstep(progress, zoneStart, (zone + 1) / 4);
-      const zoneStartTemp = THREE.MathUtils.lerp(leftBlendTemp, coilPositions[0].temp, zoneStart);
-      const zoneEndTemp = THREE.MathUtils.lerp(leftBlendTemp, coilPositions[0].temp, (zone + 1) / 4);
-      return THREE.MathUtils.lerp(zoneStartTemp, zoneEndTemp, zoneProgress);
-    }
+    if (x < coilPositions[0].xNorm) return coilPositions[0].temp;
     if (x >= coilPositions[coilPositions.length - 1].xNorm) return coilPositions[coilPositions.length - 1].temp;
 
     for (let i = 0; i < coilPositions.length - 1; i++) {
@@ -59,7 +52,8 @@ function flueGasTemperatureAt(boilerParams, y, xNorm, zNorm, height, leftWall, r
       const right = coilPositions[i + 1];
       if (x >= left.xNorm && x <= right.xNorm) {
         const fraction = (x - left.xNorm) / (right.xNorm - left.xNorm);
-        return THREE.MathUtils.lerp(left.temp, right.temp, fraction);
+        const smoothFraction = THREE.MathUtils.smoothstep(fraction, 0, 1);
+        return THREE.MathUtils.lerp(left.temp, right.temp, smoothFraction);
       }
     }
     return coilPositions[0].temp;
@@ -84,8 +78,7 @@ function flueGasTemperatureAt(boilerParams, y, xNorm, zNorm, height, leftWall, r
       return getCoilTempAtX(xNorm);
     }
     if (leftWall) {
-      // Continue the top-tile/DPSH blend around the upper furnace's left face.
-      return leftBlendTemp ?? getCoilTempAtX(0);
+      return getCoilTempAtX(0);
     }
     if (rightWall) {
       return getCoilTempAtX(0.85); // HSH position on right wall
@@ -186,6 +179,10 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
     if (layers.length < 2) return null;
     const bottom = layers[0].z;
     const top = layers[layers.length - 1].z;
+    const topElevationLayer = layers[layers.length - 1];
+    const sampleLayerTemperature = (layer, x, z) => layerTemperatureAt(
+      layer, x, z, layer === topElevationLayer ? TOP_ELEVATION_TEMP_BOOST_C : 0,
+    );
     // Extend the temperature gradient to the full furnace height
     const extendedTop = model.dimensions.height;
     // Start from the lowest elevation layer instead of extending to hopper
@@ -232,15 +229,14 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
       // Detect if this vertex is on the top face
       const altitude = y / model.dimensions.height;
       const onTopSurface = altitude >= 0.998;
-      const onFrontOrBackWall = zNorm <= 0.002 || zNorm >= 0.998;
 
       let low = layers[0];
       let high = layers[layers.length - 1];
       let temp;
       if (y <= bottom) {
-        temp = layerTemperatureAt(low, xNorm, zNorm);
+        temp = sampleLayerTemperature(low, xNorm, zNorm);
       } else if (y >= top) {
-        temp = layerTemperatureAt(high, xNorm, zNorm);
+        temp = sampleLayerTemperature(high, xNorm, zNorm);
       } else {
         for (let j = 0; j < layers.length - 1; j += 1) {
           if (y <= layers[j + 1].z) {
@@ -250,25 +246,25 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
           }
         }
         const fraction = high.z === low.z ? 0 : THREE.MathUtils.clamp((y - low.z) / (high.z - low.z), 0, 1);
-        const lowTemp = layerTemperatureAt(low, xNorm, zNorm);
-        const highTemp = layerTemperatureAt(high, xNorm, zNorm);
+        const lowTemp = sampleLayerTemperature(low, xNorm, zNorm);
+        const highTemp = sampleLayerTemperature(high, xNorm, zNorm);
         temp = lowTemp == null ? highTemp : highTemp == null ? lowTemp : THREE.MathUtils.lerp(lowTemp, highTemp, fraction);
       }
       const leftWall = originalX <= -shellWidth / 2 + 0.002;
       const rightWall = originalX >= shellWidth / 2 - 0.002;
       const coilXNorm = xNorm;
-      const flueTemp = flueGasTemperatureAt(boilerParams, y, coilXNorm, zNorm, model.dimensions.height, leftWall, rightWall, model.dimensions.width, layers[layers.length - 1].temperature?.avg);
+      const flueTemp = flueGasTemperatureAt(boilerParams, y, coilXNorm, zNorm, model.dimensions.height, leftWall, rightWall, model.dimensions.width);
       if (flueTemp != null) {
-        // Fade from the elevation field into the coil field through the
-        // connector height, retaining a gradual transition at every x.
-        const progress = THREE.MathUtils.clamp((y / model.dimensions.height - 0.72) / 0.1, 0, 1);
+        // Fade from the elevation field into the coil field through the upper
+        // section, finishing below the top edge to keep the gradient lower.
+        const progress = THREE.MathUtils.clamp((y / model.dimensions.height - 0.72) / 0.18, 0, 1);
         const blend = THREE.MathUtils.smoothstep(progress, 0, 1);
         temp = temp == null ? flueTemp : THREE.MathUtils.lerp(temp, flueTemp, blend);
       }
 
       // Explicitly apply coil gradient to top surface in coil section to match front/back faces
       if (onTopSurface && altitude >= 0.72) {
-        const coilTemp = flueGasTemperatureAt(boilerParams, y, xNorm, zNorm, model.dimensions.height, false, false, model.dimensions.width, layers[layers.length - 1].temperature?.avg);
+        const coilTemp = flueGasTemperatureAt(boilerParams, y, xNorm, zNorm, model.dimensions.height, false, false, model.dimensions.width);
         if (coilTemp != null) {
           temp = coilTemp;
         }
@@ -296,6 +292,10 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
     const xInner = width * 0.45;
     const xOuter = width * 0.951;
     const lowestElevation = layers[0].z;
+    const topElevationLayer = layers[layers.length - 1];
+    const sampleLayerTemperature = (layer, x, z) => layerTemperatureAt(
+      layer, x, z, layer === topElevationLayer ? TOP_ELEVATION_TEMP_BOOST_C : 0,
+    );
     const centerY = (lowestElevation + height) / 2;
     // Slightly overlap the shell outline to prevent a dark antialiasing seam;
     // the outline itself renders over this fill.
@@ -329,8 +329,8 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
       let low = layers[0];
       let high = layers[layers.length - 1];
       let temp;
-      if (y <= low.z) temp = layerTemperatureAt(low, xNorm, zNorm);
-      else if (y >= high.z) temp = layerTemperatureAt(high, xNorm, zNorm);
+      if (y <= low.z) temp = sampleLayerTemperature(low, xNorm, zNorm);
+      else if (y >= high.z) temp = sampleLayerTemperature(high, xNorm, zNorm);
       else {
         for (let j = 0; j < layers.length - 1; j += 1) {
           if (y <= layers[j + 1].z) {
@@ -340,16 +340,15 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
           }
         }
         const t = high.z === low.z ? 0 : THREE.MathUtils.clamp((y - low.z) / (high.z - low.z), 0, 1);
-        const lowTemp = layerTemperatureAt(low, xNorm, zNorm);
-        const highTemp = layerTemperatureAt(high, xNorm, zNorm);
+        const lowTemp = sampleLayerTemperature(low, xNorm, zNorm);
+        const highTemp = sampleLayerTemperature(high, xNorm, zNorm);
         temp = lowTemp == null ? highTemp : highTemp == null ? lowTemp : THREE.MathUtils.lerp(lowTemp, highTemp, t);
       }
-      const progress = THREE.MathUtils.clamp((y / height - 0.72) / 0.1, 0, 1);
       const coilTemp = flueGasTemperatureAt(
         boilerParams, y, xNorm, zNorm, height, false, false, width,
-        layers[layers.length - 1].temperature?.avg,
       );
       if (coilTemp != null) {
+        const progress = THREE.MathUtils.clamp((y / height - 0.72) / 0.18, 0, 1);
         const blend = THREE.MathUtils.smoothstep(progress, 0, 1);
         temp = temp == null ? coilTemp : THREE.MathUtils.lerp(temp, coilTemp, blend);
       }
@@ -361,7 +360,7 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     geometry.computeVertexNormals();
     return { geometry, centerY };
-  }, [layers, model, thresholds, boilerParams]);
+  }, [layers, model, thresholds, boilerParams, scaleRange, temperatureScaleKey]);
 
   useFrame(({ clock }) => {
     const time = clock.getElapsedTime();
