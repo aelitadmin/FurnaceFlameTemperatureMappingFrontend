@@ -204,10 +204,10 @@ function EnhancedLayerMesh({ layer, showContinuousBand, position, dimensions, co
 
     // Get corner temperatures
     const rawCornerTemps = {
+      c4: layer.temperature?.c4,
       c1: layer.temperature?.c1,
       c2: layer.temperature?.c2,
       c3: layer.temperature?.c3,
-      c4: layer.temperature?.c4,
     };
 
     // Keep the focused gradient continuous when a corner has no reading.

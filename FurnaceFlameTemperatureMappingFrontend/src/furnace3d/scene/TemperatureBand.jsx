@@ -8,10 +8,10 @@ const TOP_ELEVATION_TEMP_BOOST_C = 50;
 
 function layerTemperatureAt(layer, x, z, temperatureOffset = 0) {
   const values = [
+    layer.temperature?.c4,
     layer.temperature?.c1,
     layer.temperature?.c2,
     layer.temperature?.c3,
-    layer.temperature?.c4,
   ].map((value) => {
     const temperature = value ?? layer.temperature?.avg ?? null;
     return temperature == null ? null : Number(temperature) + temperatureOffset;

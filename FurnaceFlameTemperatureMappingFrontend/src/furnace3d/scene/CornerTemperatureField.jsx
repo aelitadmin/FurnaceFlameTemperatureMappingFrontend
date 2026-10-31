@@ -6,10 +6,10 @@ const LAYER_THICKNESS = 0.85;
 export default function CornerTemperatureField({ layer, dimensions, position, isTopLayer = false, isBottomLayer = false, opacity = 1 }) {
   const basePosition = [position?.x ?? 0, position?.y ?? layer.z, position?.z ?? 0];
   const corners = {
-    c1: { id: "c1", x: -1, z: 1, temperature: layer.temperature?.c1, label: "C1" },
-    c2: { id: "c2", x: -1, z: -1, temperature: layer.temperature?.c2, label: "C2" },
-    c3: { id: "c3", x: 1, z: -1, temperature: layer.temperature?.c3, label: "C3" },
-    c4: { id: "c4", x: 1, z: 1, temperature: layer.temperature?.c4, label: "C4" },
+    c4: { id: "c4", x: -1, z: 1, temperature: layer.temperature?.c4, label: "C4" },
+    c1: { id: "c1", x: -1, z: -1, temperature: layer.temperature?.c1, label: "C1" },
+    c2: { id: "c2", x: 1, z: -1, temperature: layer.temperature?.c2, label: "C2" },
+    c3: { id: "c3", x: 1, z: 1, temperature: layer.temperature?.c3, label: "C3" },
   };
 
   return (

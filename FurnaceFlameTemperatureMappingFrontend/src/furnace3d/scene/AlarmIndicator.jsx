@@ -19,10 +19,10 @@ import { temperatureToColor } from "../utils/temperatureScale";
 
 /** Tile-corner definition — must stay in sync with CornerTemperatureField.jsx */
 const TILE_CORNERS = [
+  { id: "c4", label: "C4", targetAngle: 45,  pos: "front-right" },  // ← Corner 1 (45°)
   { id: "c1", label: "C1", targetAngle: 225, pos: "back-left" },   // ← Corner 5 (225°)
   { id: "c2", label: "C2", targetAngle: 315, pos: "back-right" },  // ← Corner 7 (315°)
   { id: "c3", label: "C3", targetAngle: 135, pos: "front-left" },  // ← Corner 3 (135°)
-  { id: "c4", label: "C4", targetAngle: 45,  pos: "front-right" },  // ← Corner 1 (45°)
 ];
 
 function findClosestBurner(burners, targetAngle) {
