@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
 import { getTemperatureScaleRange, temperatureToColor } from "../utils/temperatureScale";
 
 const TOP_ELEVATION_TEMP_BOOST_C = 50;
@@ -29,23 +30,35 @@ function layerTemperatureAt(layer, x, z, temperatureOffset = 0) {
 function flueGasTemperatureAt(boilerParams, y, xNorm, zNorm, height, leftWall, rightWall, width) {
   // These readings describe the coil pass sequence from top to bottom.
   // Coil positions from left to right: DPSH, PSH, RH, HSH
+  // Left face values for left wall, right face values for right wall
   const coilPositions = [
-    { xNorm: 0.12, temp: coilSideAverage(boilerParams, "dpsh") },
-    { xNorm: 0.37, temp: coilSideAverage(boilerParams, "psh") },
-    { xNorm: 0.63, temp: coilSideAverage(boilerParams, "rh") },
-    { xNorm: 0.88, temp: coilSideAverage(boilerParams, "hsh") },
+    { xNorm: 0.12, tempLeft: coilSideTemperature(boilerParams, "dpsh", "l"), tempRight: coilSideTemperature(boilerParams, "dpsh", "r") },
+    { xNorm: 0.37, tempLeft: coilSideTemperature(boilerParams, "psh", "l"), tempRight: coilSideTemperature(boilerParams, "psh", "r") },
+    { xNorm: 0.63, tempLeft: coilSideTemperature(boilerParams, "rh", "l"), tempRight: coilSideTemperature(boilerParams, "rh", "r") },
+    { xNorm: 0.88, tempLeft: coilSideTemperature(boilerParams, "hsh", "l"), tempRight: coilSideTemperature(boilerParams, "hsh", "r") },
   ].map((coil) => ({
     ...coil,
-    temp: coil.temp == null || coil.temp === "" || !Number.isFinite(Number(coil.temp)) ? null : Number(coil.temp)
-  })).filter((coil) => coil.temp != null);
+    tempLeft: coil.tempLeft == null || coil.tempLeft === "" || !Number.isFinite(Number(coil.tempLeft)) ? null : Number(coil.tempLeft),
+    tempRight: coil.tempRight == null || coil.tempRight === "" || !Number.isFinite(Number(coil.tempRight)) ? null : Number(coil.tempRight),
+  })).filter((coil) => coil.tempLeft != null || coil.tempRight != null);
 
   if (coilPositions.length === 0) return null;
 
   // Interpolate temperature horizontally based on coil positions
-  const getCoilTempAtX = (x) => {
-    if (coilPositions.length === 1) return coilPositions[0].temp;
-    if (x < coilPositions[0].xNorm) return coilPositions[0].temp;
-    if (x >= coilPositions[coilPositions.length - 1].xNorm) return coilPositions[coilPositions.length - 1].temp;
+  // Use left face for the front face (z+), right face for the back face (z-)
+  const getCoilTempAtX = (x, useLeftFace) => {
+    if (coilPositions.length === 1) {
+      const coil = coilPositions[0];
+      return useLeftFace ? coil.tempLeft : coil.tempRight;
+    }
+    if (x < coilPositions[0].xNorm) {
+      const coil = coilPositions[0];
+      return useLeftFace ? coil.tempLeft : coil.tempRight;
+    }
+    if (x >= coilPositions[coilPositions.length - 1].xNorm) {
+      const coil = coilPositions[coilPositions.length - 1];
+      return useLeftFace ? coil.tempLeft : coil.tempRight;
+    }
 
     for (let i = 0; i < coilPositions.length - 1; i++) {
       const left = coilPositions[i];
@@ -53,15 +66,23 @@ function flueGasTemperatureAt(boilerParams, y, xNorm, zNorm, height, leftWall, r
       if (x >= left.xNorm && x <= right.xNorm) {
         const fraction = (x - left.xNorm) / (right.xNorm - left.xNorm);
         const smoothFraction = THREE.MathUtils.smoothstep(fraction, 0, 1);
-        return THREE.MathUtils.lerp(left.temp, right.temp, smoothFraction);
+        // Interpolate temperatures on the selected face
+        const temp = useLeftFace
+          ? (left.tempLeft == null ? right.tempLeft : right.tempLeft == null ? left.tempLeft : THREE.MathUtils.lerp(left.tempLeft, right.tempLeft, smoothFraction))
+          : (left.tempRight == null ? right.tempRight : right.tempRight == null ? left.tempRight : THREE.MathUtils.lerp(left.tempRight, right.tempRight, smoothFraction));
+        return temp;
       }
     }
-    return coilPositions[0].temp;
+    const coil = coilPositions[0];
+    return useLeftFace ? coil.tempLeft : coil.tempRight;
   };
 
   const altitude = y / height;
   const onTopSurface = altitude >= 0.998;
   const onFrontOrBackWall = zNorm <= 0.002 || zNorm >= 0.998;
+
+  // Determine which face we're on: front face (z+) uses right temps, back face (z-) uses left temps
+  const useLeftFace = zNorm < 0.5;
 
   // Apply coil temperature gradient in the coil section (0.72 to 1.0 of height - covers top section)
   const coilSectionTop = 1.0;
@@ -72,27 +93,33 @@ function flueGasTemperatureAt(boilerParams, y, xNorm, zNorm, height, leftWall, r
     // left-to-right coil pass gradient there instead of falling back to the
     // upper elevation layer temperatures.
     if (onTopSurface) {
-      return getCoilTempAtX(xNorm);
+      return getCoilTempAtX(xNorm, useLeftFace);
     }
     if (onFrontOrBackWall) {
-      return getCoilTempAtX(xNorm);
+      return getCoilTempAtX(xNorm, useLeftFace);
     }
     if (leftWall) {
-      return getCoilTempAtX(0);
+      return getCoilTempAtX(0.0, useLeftFace);
     }
     if (rightWall) {
-      return getCoilTempAtX(0.85); // HSH position on right wall
+      return getCoilTempAtX(1.0, useLeftFace);
     }
   }
 
   // Also apply coil gradient to top surface for the entire coil section height range
   // This ensures the top face matches the front/back faces for dpsh, psh, rh, hsh areas
   if (onTopSurface && altitude >= coilSectionBottom) {
-    return getCoilTempAtX(xNorm);
+    return getCoilTempAtX(xNorm, useLeftFace);
   }
 
   // For areas outside coil section, return null to use furnace layer temperatures
   return null;
+}
+
+function coilSideTemperature(boilerParams, coilId, side) {
+  const value = boilerParams?.[`fg_temp_after_${coilId}_${side}`];
+  if (value == null || value === "" || !Number.isFinite(Number(value))) return null;
+  return Number(value);
 }
 
 function coilSideAverage(boilerParams, coilId) {
@@ -264,6 +291,7 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
 
       // Explicitly apply coil gradient to top surface in coil section to match front/back faces
       if (onTopSurface && altitude >= 0.72) {
+        const useLeftFace = zNorm >= 0.5;
         const coilTemp = flueGasTemperatureAt(boilerParams, y, xNorm, zNorm, model.dimensions.height, false, false, model.dimensions.width);
         if (coilTemp != null) {
           temp = coilTemp;
@@ -344,6 +372,7 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
         const highTemp = sampleLayerTemperature(high, xNorm, zNorm);
         temp = lowTemp == null ? highTemp : highTemp == null ? lowTemp : THREE.MathUtils.lerp(lowTemp, highTemp, t);
       }
+      const useLeftFace = zNorm >= 0.5;
       const coilTemp = flueGasTemperatureAt(
         boilerParams, y, xNorm, zNorm, height, false, false, width,
       );
