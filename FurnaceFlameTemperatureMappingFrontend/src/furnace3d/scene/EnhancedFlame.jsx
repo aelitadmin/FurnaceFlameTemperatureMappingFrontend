@@ -182,18 +182,18 @@ function FlameParticles({ count, color, intensity, seed, mode = "spark" }) {
       pos[i * 3 + 1] = 0.0 + seededRandom(s + 1.3) * 2.0; // Vertical distribution
       pos[i * 3 + 2] = (seededRandom(s + 2.1) - 0.5) * spread; // Depth spread
       vel[i * 3] = (seededRandom(s + 3.7) - 0.5) * (isEmber ? 0.004 : 0.008); // Horizontal movement
-      vel[i * 3 + 1] = (isEmber ? 0.02 : 0.04) + seededRandom(s + 4.2) * (isEmber ? 0.02 : 0.04); // Vertical rise
+      vel[i * 3 + 1] = (isEmber ? 0.08 : 0.12) + seededRandom(s + 4.2) * (isEmber ? 0.06 : 0.08); // Vertical rise - faster
       vel[i * 3 + 2] = (seededRandom(s + 5.9) - 0.5) * (isEmber ? 0.004 : 0.008); // Depth movement
-      sz[i] = (isEmber ? 0.18 : 0.12) + seededRandom(s + 8.4) * (isEmber ? 0.12 : 0.1); // Particle sizes
+      sz[i] = (isEmber ? 0.06 : 0.04) + seededRandom(s + 8.4) * (isEmber ? 0.04 : 0.03); // Particle sizes - smaller
     }
     return { positions: pos, velocities: vel, sizes: sz };
   }, [count, seed, isEmber, spread, riseMax]);
 
   const particleMaterial = useMemo(() => {
     const mat = createFlameParticleMaterial(color, intensity);
-    mat.size = isEmber ? 0.18 : 0.12; // Larger particles for thicker flame
+    mat.size = isEmber ? 0.06 : 0.04; // Smaller particles
     mat.toneMapped = false;
-    mat.opacity = isEmber ? 0.65 * intensity : 0.95 * intensity; // Higher opacity
+    mat.opacity = isEmber ? 0.35 * intensity : 0.45 * intensity; // Lighter opacity
     mat.sizeAttenuation = true;
     return mat;
   }, [color, intensity, isEmber]);
@@ -201,7 +201,7 @@ function FlameParticles({ count, color, intensity, seed, mode = "spark" }) {
   useEffect(() => {
     if (!particleMaterial) return;
     particleMaterial.color.set(color);
-    particleMaterial.opacity = (isEmber ? 0.65 : 0.95) * intensity;
+    particleMaterial.opacity = (isEmber ? 0.35 : 0.45) * intensity;
   }, [particleMaterial, color, intensity, isEmber]);
 
   useFrame(({ clock }) => {
