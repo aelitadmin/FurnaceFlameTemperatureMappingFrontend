@@ -1348,18 +1348,22 @@ export default function App() {
 });
   const [, setTemperatureScaleVersion] = useState(0);
   const filterElevationTemperatureScaleToRun = (runId) => {
-    const dataset = datasets[runId];
-    if (!dataset) return;
+    // Get temperatures from all selected runs
+    const allTemperatures = selected.flatMap((selectedRunId) => {
+      const dataset = datasets[selectedRunId];
+      if (!dataset) return [];
 
-    const temperatures = Object.keys(dataset)
-      .filter((key) => /^c\d+$/.test(key))
-      .flatMap((key) => dataset[key] || [])
-      .map((value) => (value == null || String(value).trim() === "" ? NaN : Number(value)))
-      .filter((value) => Number.isFinite(value) && value > 0);
-    if (!temperatures.length) return;
+      return Object.keys(dataset)
+        .filter((key) => /^c\d+$/.test(key))
+        .flatMap((key) => dataset[key] || [])
+        .map((value) => (value == null || String(value).trim() === "" ? NaN : Number(value)))
+        .filter((value) => Number.isFinite(value) && value > 0);
+    });
 
-    let min = Math.round(Math.min(...temperatures));
-    let max = Math.round(Math.max(...temperatures));
+    if (!allTemperatures.length) return;
+
+    let min = Math.round(Math.min(...allTemperatures));
+    let max = Math.round(Math.max(...allTemperatures));
     if (max <= min) max = min + 1;
 
     setTemperatureScaleRange(min, max, runId);
@@ -1367,18 +1371,22 @@ export default function App() {
   };
 
   const filterFlueGasTemperatureScaleToRun = (runId) => {
-    const boiler = boilerData[runId];
-    if (!boiler) return;
+    // Get flue gas temperatures from all selected runs
+    const allTemperatures = selected.flatMap((selectedRunId) => {
+      const boiler = boilerData[selectedRunId];
+      if (!boiler) return [];
 
-    const flueGasTemps = boiler.flue_gas_temps || boiler;
-    const temperatures = Object.entries(flueGasTemps)
-      .filter(([key]) => key.startsWith("fg_temp_"))
-      .map(([, value]) => (value == null || String(value).trim() === "" ? NaN : Number(value)))
-      .filter((value) => Number.isFinite(value) && value > 0);
-    if (!temperatures.length) return;
+      const flueGasTemps = boiler.flue_gas_temps || boiler;
+      return Object.entries(flueGasTemps)
+        .filter(([key]) => key.startsWith("fg_temp_"))
+        .map(([, value]) => (value == null || String(value).trim() === "" ? NaN : Number(value)))
+        .filter((value) => Number.isFinite(value) && value > 0);
+    });
 
-    let min = Math.round(Math.min(...temperatures));
-    let max = Math.round(Math.max(...temperatures));
+    if (!allTemperatures.length) return;
+
+    let min = Math.round(Math.min(...allTemperatures));
+    let max = Math.round(Math.max(...allTemperatures));
     if (max <= min) max = min + 1;
 
     setTemperatureScaleRange(min, max, runId);
