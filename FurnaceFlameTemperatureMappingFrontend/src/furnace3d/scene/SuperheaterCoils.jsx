@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Html } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
 
 /** Superheater coils shown as brown serpentine pipes. */
 export default function SuperheaterCoils({ dimensions, boilerParams }) {
@@ -66,24 +67,43 @@ export default function SuperheaterCoils({ dimensions, boilerParams }) {
       {banks.map((bank) => (
         <group key={bank.id} position={[bank.x, bank.y, 0]}>
           <CoilRows bank={bank} />
-          <Html position={[0, height * 1.025 - bank.y, bank.casingDepth / 2 + 0.06]} center style={{ pointerEvents: "none" }}>
-            <div style={coilReadoutStyle}>
-              <div style={coilHeadingStyle}>{bank.id.toUpperCase()}</div>
-              <div style={coilValuesStyle}>
-                <div style={coilSideStyle}>
-                  <span style={coilSideLabelStyle}>L</span>
-                  <span style={coilTempStyle}>{formatTemperature(boilerParams?.[`fg_temp_after_${bank.id}_l`])}</span>
-                </div>
-                <div style={coilSideStyle}>
-                  <span style={coilSideLabelStyle}>R</span>
-                  <span style={coilTempStyle}>{formatTemperature(boilerParams?.[`fg_temp_after_${bank.id}_r`])}</span>
-                </div>
-              </div>
-            </div>
-          </Html>
+          <CoilReadout
+            position={[-bank.casingWidth * 0.48, 0, 0]}
+            bankId={bank.id}
+            side="l"
+            value={boilerParams?.[`fg_temp_after_${bank.id}_l`]}
+          />
+          <CoilReadout
+            position={[bank.casingWidth * 0.48, 0, 0]}
+            bankId={bank.id}
+            side="r"
+            value={boilerParams?.[`fg_temp_after_${bank.id}_r`]}
+          />
         </group>
       ))}
     </group>
+  );
+}
+
+function CoilReadout({ position, bankId, side, value }) {
+  const elementRef = useRef();
+  const { camera } = useThree();
+
+  useFrame(() => {
+    if (!elementRef.current) return;
+    const viewingRightFace = camera.position.x >= 0;
+    elementRef.current.style.display = (side === "r" ? viewingRightFace : !viewingRightFace)
+      ? "block"
+      : "none";
+  });
+
+  return (
+    <Html ref={elementRef} position={position} center style={{ pointerEvents: "none" }}>
+      <div style={coilReadoutStyle}>
+        <div style={coilHeadingStyle}>{bankId.toUpperCase()} {side.toUpperCase()}</div>
+        <div style={coilTempStyle}>{formatTemperature(value)}</div>
+      </div>
+    </Html>
   );
 }
 
@@ -123,9 +143,9 @@ function formatTemperature(value) {
 const coilReadoutStyle = {
   display: "grid",
   gap: "4px",
-  width: "44px",
+  width: "54px",
   boxSizing: "border-box",
-  padding: "5px 3px",
+  padding: "5px 4px",
   borderRadius: "7px",
   background: "rgba(8, 16, 30, .94)",
   border: "1px solid rgba(125, 183, 255, .55)",
@@ -140,32 +160,10 @@ const coilHeadingStyle = {
   gap: "5px",
   color: "#f4f8ff",
   fontFamily: "Arial, sans-serif",
-  fontSize: "11px",
+  fontSize: "9px",
   fontWeight: 800,
   letterSpacing: ".09em",
   lineHeight: 1,
-};
-
-const coilValuesStyle = {
-  display: "grid",
-  gap: "3px",
-  fontFamily: "Arial, sans-serif",
-};
-
-const coilSideStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  padding: "2px 3px",
-  borderRadius: "4px",
-  background: "rgba(255,255,255,.07)",
-};
-
-const coilSideLabelStyle = {
-  color: "#9bb0ca",
-  fontSize: "8px",
-  fontWeight: 700,
-  letterSpacing: ".08em",
 };
 
 const coilTempStyle = {
