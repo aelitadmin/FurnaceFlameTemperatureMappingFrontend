@@ -39,14 +39,18 @@ export default function FurnaceLayers({ model, boilerParams, temperatureScaleKey
     const factor = state.explosionFactor || 0.3;
     const positions = {};
 
-    model.layers.forEach((layer) => {
-      // Spread layers vertically with explosion
-      const baseZ = layer.z;
-      const totalHeight = model.dimensions.height;
-      const normalizedHeight = baseZ / totalHeight;
+    // Use actual elevation range for relative spacing
+    const elevationRange = highestElevation - lowestElevation;
 
-      // Add vertical offset based on explosion factor
-      const explosionOffset = (normalizedHeight - 0.5) * totalHeight * factor;
+    model.layers.forEach((layer) => {
+      // Spread layers vertically with explosion relative to elevation range
+      const baseZ = layer.z;
+      const normalizedElevation = elevationRange > 0
+        ? (baseZ - lowestElevation) / elevationRange
+        : 0.5;
+
+      // Add vertical offset based on explosion factor and elevation range
+      const explosionOffset = (normalizedElevation - 0.5) * elevationRange * factor;
 
       positions[layer.id] = {
         x: 0,
@@ -56,7 +60,7 @@ export default function FurnaceLayers({ model, boilerParams, temperatureScaleKey
     });
 
     return positions;
-  }, [state.explodedView, state.explosionFactor, model.layers, model.dimensions.height]);
+  }, [state.explodedView, state.explosionFactor, model.layers, lowestElevation, highestElevation]);
 
   // Removed animations to keep furnace static and stable
 
