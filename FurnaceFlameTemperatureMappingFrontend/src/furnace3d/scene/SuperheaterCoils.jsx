@@ -1,6 +1,6 @@
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { Html } from "@react-three/drei";
+import { Html, Text } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 
 /** Superheater coils shown as brown serpentine pipes. */
@@ -68,16 +68,18 @@ export default function SuperheaterCoils({ dimensions, boilerParams }) {
         <group key={bank.id} position={[bank.x, bank.y, 0]}>
           <CoilRows bank={bank} />
           <CoilReadout
-            position={[-bank.casingWidth * 0.48, bank.h * 0.08, 0]}
+            position={[0, bank.h * 0.08, 0]}
             bankId={bank.id}
             side="l"
             value={boilerParams?.[`fg_temp_after_${bank.id}_l`]}
+            furnaceDepth={depth}
           />
           <CoilReadout
-            position={[bank.casingWidth * 0.48, bank.h * 0.08, 0]}
+            position={[0, bank.h * 0.08, 0]}
             bankId={bank.id}
             side="r"
             value={boilerParams?.[`fg_temp_after_${bank.id}_r`]}
+            furnaceDepth={depth}
           />
         </group>
       ))}
@@ -85,44 +87,77 @@ export default function SuperheaterCoils({ dimensions, boilerParams }) {
   );
 }
 
-function CoilReadout({ position, bankId, side, value }) {
-  const elementRef = useRef();
-  const { camera } = useThree();
-
-  useFrame(() => {
-    if (!elementRef.current) return;
-    const viewingRightFace = camera.position.x >= 0;
-    const visible = side === "r" ? viewingRightFace : !viewingRightFace;
-    elementRef.current.style.opacity = visible ? "1" : "0";
-    elementRef.current.style.transform = visible
-      ? "translateY(0px) scale(1)"
-      : "translateY(6px) scale(0.94)";
-    elementRef.current.style.filter = visible ? "none" : "blur(1px)";
-  });
-
+function CoilReadout({ position, bankId, side, value, furnaceDepth }) {
   const sideColor = side === "r" ? "#fb923c" : "#38bdf8";
   const sideLabel = side === "r" ? "RIGHT" : "LEFT";
+  const zOffset = furnaceDepth / 2 + 0.2;
+
+  // Position text on the front and back faces (z-faces) at the coil position
+  // Front face (z+) at bank's x position, Back face (z-) at bank's x position
+  const textPosition = side === "r"
+    ? [position[0], position[1], zOffset] // front face (z+)
+    : [position[0], position[1], -zOffset]; // back face (z-)
+
+  const textRotation = side === "r"
+    ? [0, 0, 0] // face front
+    : [0, Math.PI, 0]; // face back
+
+  const tempText = formatTemperature(value);
 
   return (
-    <Html
-      ref={elementRef}
-      position={position}
-      center
-      zIndexRange={[100, 0]}
-      style={{
-        pointerEvents: "none",
-        transition: "opacity 0.22s ease, transform 0.22s ease, filter 0.22s ease",
-      }}
-    >
-      <div style={coilReadoutStyle(sideColor)}>
-        <div style={coilHeadingStyle(sideColor)}>
-          <span style={coilSideDotStyle(sideColor)} />
-          {bankId.toUpperCase()}
-        </div>
-        <div style={coilSideLabelStyle(sideColor)}>{sideLabel}</div>
-        <div style={coilTempStyle}>{formatTemperature(value)}</div>
-      </div>
-    </Html>
+    <group position={textPosition} rotation={textRotation}>
+      <Text
+        fontSize={0.8}
+        color="#ffffff"
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.1}
+        outlineColor={sideColor}
+        depthOffset={-5}
+        opacity={1}
+        fontWeight={900}
+        material-depthTest={false}
+        material-depthWrite={false}
+        renderOrder={1000}
+        position={[0, 0.8, 0]}
+      >
+        {bankId.toUpperCase()}
+      </Text>
+      <Text
+        fontSize={0.6}
+        color={sideColor}
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.08}
+        outlineColor="#ffffff"
+        depthOffset={-5}
+        opacity={1}
+        fontWeight={800}
+        material-depthTest={false}
+        material-depthWrite={false}
+        renderOrder={1000}
+        position={[0, 0, 0]}
+      >
+        {sideLabel}
+      </Text>
+      <Text
+        fontSize={0.7}
+        color="#ffffff"
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.08}
+        outlineColor={sideColor}
+        depthOffset={-5}
+        opacity={1}
+        fontWeight={900}
+        material-depthTest={false}
+        material-depthWrite={false}
+        renderOrder={1000}
+        position={[0, -0.8, 0]}
+      >
+        {tempText}
+      </Text>
+    </group>
   );
 }
 
