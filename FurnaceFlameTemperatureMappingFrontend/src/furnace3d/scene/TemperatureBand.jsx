@@ -212,8 +212,9 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
     );
     // Extend the temperature gradient to the full furnace height
     const extendedTop = model.dimensions.height;
-    // Start from the lowest elevation layer instead of extending to hopper
-    const extendedBottom = bottom;
+    // Extend down to the hopper (16% of height) with constant 350°C
+    const hopperY = model.dimensions.height * 0.16;
+    const extendedBottom = Math.min(bottom, hopperY);
     const height = extendedTop - extendedBottom;
     if (height <= 0) return null;
 
@@ -260,7 +261,12 @@ export default function TemperatureBand({ model, thresholds, boilerParams, tempe
       let low = layers[0];
       let high = layers[layers.length - 1];
       let temp;
-      if (y <= bottom) {
+      // Gradually interpolate from lowest layer to 350°C at hopper
+      if (y <= bottom && y >= hopperY) {
+        const lowTemp = sampleLayerTemperature(low, xNorm, zNorm);
+        const fraction = (y - hopperY) / (bottom - hopperY);
+        temp = lowTemp == null ? 350 : THREE.MathUtils.lerp(350, lowTemp, fraction);
+      } else if (y <= bottom) {
         temp = sampleLayerTemperature(low, xNorm, zNorm);
       } else if (y >= top) {
         temp = sampleLayerTemperature(high, xNorm, zNorm);
