@@ -64,25 +64,34 @@ export default function SuperheaterCoils({ dimensions, boilerParams }) {
 
   return (
     <group>
-      {banks.map((bank) => (
-        <group key={bank.id} position={[bank.x, bank.y, 0]}>
-          <CoilRows bank={bank} />
-          <CoilReadout
-            position={[0, bank.h * 0.08, 0]}
-            bankId={bank.id}
-            side="l"
-            value={boilerParams?.[`fg_temp_after_${bank.id}_l`]}
-            furnaceDepth={depth}
-          />
-          <CoilReadout
-            position={[0, bank.h * 0.08, 0]}
-            bankId={bank.id}
-            side="r"
-            value={boilerParams?.[`fg_temp_after_${bank.id}_r`]}
-            furnaceDepth={depth}
-          />
-        </group>
-      ))}
+      {banks.map((bank) => {
+        const leftValue = boilerParams?.[`fg_temp_after_${bank.id}_l`];
+        const rightValue = boilerParams?.[`fg_temp_after_${bank.id}_r`];
+
+        // If only one side has data, use it for both sides
+        const displayLeft = leftValue ?? rightValue;
+        const displayRight = rightValue ?? leftValue;
+
+        return (
+          <group key={bank.id} position={[bank.x, bank.y, 0]}>
+            <CoilRows bank={bank} />
+            <CoilReadout
+              position={[0, bank.h * 0.08, 0]}
+              bankId={bank.id}
+              side="l"
+              value={displayLeft}
+              furnaceDepth={depth}
+            />
+            <CoilReadout
+              position={[0, bank.h * 0.08, 0]}
+              bankId={bank.id}
+              side="r"
+              value={displayRight}
+              furnaceDepth={depth}
+            />
+          </group>
+        );
+      })}
     </group>
   );
 }
