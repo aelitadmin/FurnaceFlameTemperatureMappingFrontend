@@ -2354,6 +2354,36 @@ setStatsData(p => ({ ...p, [item.run_id]: statsRes.data }));
             }}
           >
             <button
+              onClick={() => navigation(-1)}
+              style={{
+                width: "42px",
+                height: "42px",
+                borderRadius: "10px",
+                border: "1px solid rgba(255,255,255,0.18)",
+                background: "rgba(255,255,255,0.08)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "4px",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+              title="Go Back"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
               onClick={() => setSidebarOpen(o => !o)}
               style={{
                 width: "42px",
